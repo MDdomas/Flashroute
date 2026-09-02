@@ -1,391 +1,1145 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Flashroute - Sistema de Rotas</title>
-  
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              teal: '#0d9488',
-              darkTeal: '#0f766e',
-              yellow: '#eab308',
-              light: '#f0fdf4'
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flashroute - Roteirizador Inteligente</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            teal: '#00A3A8',
+                            tealDark: '#008489',
+                            tealLight: '#E5F6F6',
+                            yellow: '#F6B21A',
+                            yellowDark: '#d99a12'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
             }
-          }
         }
-      }
-    }
-  </script>
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-  <!-- Leaflet CSS & JS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
-  <!-- Phosphor Icons -->
-  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Leaflet JS (Mapas) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- Sortable JS -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <!-- Sortable JS (Reordenação Drag & Drop) -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 
-  <style>
-    @media print {
-      body * { visibility: hidden; }
-      #printable-area, #printable-area * { visibility: visible; }
-      #printable-area { position: absolute; left: 0; top: 0; width: 100%; }
-      .no-print { display: none !important; }
-    }
-  </style>
-</head>
-<body class="bg-gray-100 font-sans text-gray-800 antialiased h-screen flex flex-col">
+    <!-- SheetJS (Leitura Real de Planilhas Excel) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-  <!-- TOPNAV -->
-  <header class="bg-brand-darkTeal text-white px-6 py-3 flex items-center justify-between shadow-md no-print">
-    <div class="flex items-center gap-3">
-      <div class="bg-brand-yellow p-2 rounded-lg text-gray-900 font-bold text-xl flex items-center justify-center w-10 h-10">
-        <i class="ph-bold ph-navigation-arrow"></i>
-      </div>
-      <div>
-        <h1 class="text-xl font-bold tracking-wide">Flashroute</h1>
-        <p class="text-xs text-teal-200">Distribuição & Rotas Inteligentes</p>
-      </div>
-    </div>
-    
-    <div id="user-info" class="flex items-center gap-4 text-sm">
-      <span class="bg-teal-800 px-3 py-1 rounded-full text-xs">Operador: <strong>Carlos Silva</strong></span>
-      <button onclick="toggleLogin()" class="text-xs bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded transition">Sair</button>
-    </div>
-  </header>
-
-  <!-- MAIN CONTAINER -->
-  <div class="flex-1 flex overflow-hidden">
-    
-    <!-- SIDEBAR / PAINEL LATERAL -->
-    <aside class="w-96 bg-white border-r border-gray-200 flex flex-col z-10 no-print shadow-lg">
-      
-      <!-- CONTROLES SUPERIORES -->
-      <div class="p-4 border-b border-gray-200 bg-gray-50 flex flex-col gap-2">
-        <div class="flex justify-between items-center">
-          <h2 class="font-bold text-gray-700 flex items-center gap-2">
-            <i class="ph-bold ph-list-numbers text-brand-teal"></i> Pontos de Entrega
-          </h2>
-          <span id="total-count" class="text-xs bg-gray-200 px-2 py-0.5 rounded-full font-semibold">0 paradas</span>
-        </div>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
         
-        <div class="flex gap-2 mt-2">
-          <button onclick="otimizarRota()" class="flex-1 bg-brand-teal hover:bg-brand-darkTeal text-white text-xs py-2 px-3 rounded flex items-center justify-center gap-1.5 font-medium transition shadow-sm">
-            <i class="ph-bold ph-magic-wand"></i> Otimizar Rota
-          </button>
-          <button onclick="adicionarNovoEnderecoModal()" class="bg-brand-yellow hover:bg-yellow-500 text-gray-900 text-xs py-2 px-3 rounded flex items-center gap-1 font-medium transition shadow-sm">
-            <i class="ph-bold ph-plus"></i> Manual
-          </button>
-        </div>
-      </div>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-      <!-- LISTA REORDENÁVEL -->
-      <div class="flex-1 overflow-y-auto p-3 space-y-2" id="delivery-list">
-        <!-- Renderizado dinamicamente -->
-      </div>
+        #map { z-index: 10; }
+        
+        .sortable-ghost { opacity: 0.4; background-color: #E5F6F6; border: 2px dashed #00A3A8; }
+        .sortable-drag { cursor: grabbing !important; }
 
-      <!-- FOOTER DA SIDEBAR -->
-      <div class="p-4 border-t border-gray-200 bg-gray-50 flex justify-between gap-2">
-        <button onclick="salvarRota()" class="flex-1 bg-gray-800 hover:bg-gray-900 text-white text-xs py-2.5 rounded font-medium flex items-center justify-center gap-2">
-          <i class="ph-bold ph-floppy-disk"></i> Salvar na Conta
-        </button>
-        <button onclick="window.print()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs px-4 py-2.5 rounded font-medium flex items-center justify-center gap-1">
-          <i class="ph-bold ph-printer"></i> Imprimir
-        </button>
-      </div>
-    </aside>
-
-    <!-- MAPA & ÁREA IMPRESSA -->
-    <main class="flex-1 relative flex flex-col" id="printable-area">
-      <!-- MAPA LEAFLET -->
-      <div id="map" class="w-full h-full z-0"></div>
-
-      <!-- PAINEL DE INFORMAÇÕES DE VIAGEM -->
-      <div class="absolute bottom-4 right-4 bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-xl z-[1000] border border-gray-200 flex items-center gap-6 no-print">
-        <div class="flex items-center gap-3">
-          <div class="p-3 bg-teal-100 text-brand-darkTeal rounded-lg">
-            <i class="ph-bold ph-path text-xl"></i>
-          </div>
-          <div>
-            <p class="text-xs text-gray-500 font-medium">Distância Estimada</p>
-            <p id="info-distancia" class="text-lg font-bold text-gray-800">0.0 km</p>
-          </div>
-        </div>
-        <div class="h-8 w-px bg-gray-300"></div>
-        <div class="flex items-center gap-3">
-          <div class="p-3 bg-yellow-100 text-yellow-700 rounded-lg">
-            <i class="ph-bold ph-clock text-xl"></i>
-          </div>
-          <div>
-            <p class="text-xs text-gray-500 font-medium">Tempo de Trajeto</p>
-            <p id="info-tempo" class="text-lg font-bold text-gray-800">0 min</p>
-          </div>
-        </div>
-      </div>
-    </main>
-  </div>
-
-  <!-- MODAL: DETALHES COMPLETOS DO PEDIDO -->
-  <div id="modal-details" class="fixed inset-0 bg-black/50 z-[2000] hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
-      <div class="flex justify-between items-center border-b pb-3">
-        <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <i class="ph-bold ph-package text-brand-teal"></i> Detalhes da Entrega
-        </h3>
-        <button onclick="fecharModalDetalhes()" class="text-gray-400 hover:text-gray-600">
-          <i class="ph-bold ph-x text-xl"></i>
-        </button>
-      </div>
-      <div id="modal-content" class="space-y-2 text-sm text-gray-600">
-        <!-- Preenchido via JS -->
-      </div>
-      <div class="pt-2 text-right">
-        <button onclick="fecharModalDetalhes()" class="bg-brand-teal text-white px-4 py-2 rounded text-xs font-bold">Fechar</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- SCRIPT DA APLICAÇÃO -->
-  <script>
-    // Estado inicial com pontos fictícios na região do Rio de Janeiro
-    let entregas = [
-      { id: 1, cliente: "Distribuidora Central", endereco: "Centro, Rio de Janeiro - RJ", lat: -22.9068, lng: -43.1729, pedido: "PED-1001", nf: "NF-8821", obs: "Portão lateral" },
-      { id: 2, cliente: "Mercado do Bairro", endereco: "Botafogo, Rio de Janeiro - RJ", lat: -22.9519, lng: -43.1857, pedido: "PED-1002", nf: "NF-8822", obs: "Receber das 08h às 12h" },
-      { id: 3, cliente: "Supermercado Praça", endereco: "Copacabana, Rio de Janeiro - RJ", lat: -22.9694, lng: -43.1868, pedido: "PED-1003", nf: "NF-8823", obs: "Procurar Sr. Marcos" },
-      { id: 4, cliente: "Empório Ipanema", endereco: "Ipanema, Rio de Janeiro - RJ", lat: -22.9836, lng: -43.2045, pedido: "PED-1004", nf: "NF-8824", obs: "Entregar docas do fundo" }
-    ];
-
-    let map, markersGroup, polylineLayer;
-
-    // Inicialização do Mapa
-    function initMap() {
-      map = L.map('map').setView([-22.9300, -43.1800], 13);
-
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-      }).addTo(map);
-
-      markersGroup = L.layerGroup().addTo(map);
-      polylineLayer = L.layerGroup().addTo(map);
-
-      renderizarApp();
-    }
-
-    // Renderiza a lista lateral, marcadores no mapa e atualiza o traçado viário
-    function renderizarApp() {
-      renderLista();
-      renderMarcadores();
-      tracarRotaVariavel();
-    }
-
-    function renderLista() {
-      const container = document.getElementById('delivery-list');
-      container.innerHTML = '';
-      document.getElementById('total-count').innerText = `${entregas.length} paradas`;
-
-      entregas.forEach((item, index) => {
-        const isFirst = index === 0;
-        const isLast = index === entregas.length - 1;
-
-        let tagClass = 'bg-gray-100 text-gray-700';
-        let tagText = `Parada #${index + 1}`;
-        if (isFirst) { tagClass = 'bg-green-100 text-green-800 font-bold'; tagText = 'INÍCIO'; }
-        else if (isLast) { tagClass = 'bg-red-100 text-red-800 font-bold'; tagText = 'FIM'; }
-
-        const card = document.createElement('div');
-        card.className = "p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition cursor-grab flex items-center justify-between gap-2";
-        card.dataset.id = item.id;
-
-        card.innerHTML = `
-          <div class="flex items-center gap-3 overflow-hidden">
-            <i class="ph-bold ph-dots-six-vertical text-gray-400 text-lg"></i>
-            <div class="truncate">
-              <div class="flex items-center gap-2">
-                <span class="text-[10px] px-2 py-0.5 rounded ${tagClass}">${tagText}</span>
-                <h4 class="font-bold text-xs text-gray-800 truncate">${item.cliente}</h4>
-              </div>
-              <p class="text-[11px] text-gray-500 truncate mt-0.5">${item.endereco}</p>
-            </div>
-          </div>
-          <button onclick="exibirDetalhes(${item.id})" class="text-brand-teal hover:bg-teal-50 p-1.5 rounded-full transition" title="Ver Informações Completas">
-            <i class="ph-bold ph-info text-base"></i>
-          </button>
-        `;
-        container.appendChild(card);
-      });
-
-      // Ativa Arrastar e Soltar na Lista
-      new Sortable(container, {
-        animation: 150,
-        onEnd: function () {
-          const newOrder = Array.from(container.children).map(child => parseInt(child.dataset.id));
-          entregas = newOrder.map(id => entregas.find(item => item.id === id));
-          renderizarApp();
+        @media print {
+            body { background: white; }
+            #sidebar, #top-nav, #actions-bar, .no-print { display: none !important; }
+            #main-content { margin: 0; padding: 0; width: 100%; }
+            #map-container { height: 450px; width: 100%; page-break-inside: avoid; }
+            #route-list-container { width: 100%; height: auto !important; overflow: visible !important; }
+            .print-header { display: block !important; margin-bottom: 20px; }
+            .stop-item { page-break-inside: avoid; border: 1px solid #e2e8f0; margin-bottom: 8px; border-radius: 8px; }
+            .drag-handle { display: none !important; }
         }
-      });
-    }
 
-    function renderMarcadores() {
-      markersGroup.clearLayers();
+        .print-header { display: none; }
+        #loading-overlay { display: none; }
+        #loading-overlay.active { display: flex; }
+    </style>
+</head>
+<body class="text-gray-800 antialiased overflow-hidden h-screen w-screen flex flex-col">
 
-      entregas.forEach((item, index) => {
-        const isFirst = index === 0;
-        const isLast = index === entregas.length - 1;
+    <!-- AUTH VIEW (LOGIN / CADASTRO) -->
+    <div id="login-view" class="fixed inset-0 z-50 flex bg-gray-50">
+        <div class="w-full md:w-1/2 flex flex-col justify-center px-8 md:px-16 bg-white shadow-xl z-10 relative overflow-y-auto py-8">
+            <div class="max-w-md w-full mx-auto">
+                <div class="mb-6 text-center md:text-left">
+                    <div class="flex items-center justify-center md:justify-start gap-2 mb-2">
+                        <i class="ph-fill ph-path text-4xl text-brand-teal"></i>
+                        <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Flashroute</h1>
+                    </div>
+                    <p class="text-xs font-semibold text-gray-400 tracking-widest uppercase">Sistemas de Roteirização • Luzia Distribuição</p>
+                </div>
 
-        let badgeColor = '#0d9488';
-        if (isFirst) badgeColor = '#16a34a';
-        if (isLast) badgeColor = '#dc2626';
+                <!-- ABAS DE NAVEGAÇÃO ENTRE LOGIN E CADASTRO -->
+                <div class="flex border-b border-gray-200 mb-6">
+                    <button id="tab-login-btn" onclick="switchAuthTab('login')" class="w-1/2 py-3 text-center font-semibold text-sm border-b-2 border-brand-teal text-brand-teal transition-all">
+                        Entrar
+                    </button>
+                    <button id="tab-register-btn" onclick="switchAuthTab('register')" class="w-1/2 py-3 text-center font-semibold text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-all">
+                        Criar Conta
+                    </button>
+                </div>
 
-        const customIcon = L.divIcon({
-          className: 'custom-pin',
-          html: `<div style="background-color: ${badgeColor}; color: white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3); font-size: 12px;">${index + 1}</div>`,
-          iconSize: [28, 28],
-          iconAnchor: [14, 14]
+                <!-- FORMULÁRIO DE LOGIN (CAMPOS LIMPOS) -->
+                <form id="login-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">E-mail corporativo</label>
+                        <input type="email" id="login-email" placeholder="seuemail@empresa.com.br" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal focus:border-brand-teal outline-none transition-all" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Senha</label>
+                        <input type="password" id="login-password" placeholder="••••••••" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal focus:border-brand-teal outline-none transition-all" required>
+                    </div>
+                    <div class="flex items-center justify-between mt-2">
+                        <label class="flex items-center gap-2">
+                            <input type="checkbox" class="rounded text-brand-teal focus:ring-brand-teal">
+                            <span class="text-sm text-gray-600">Lembrar sessão</span>
+                        </label>
+                    </div>
+                    <button type="submit" class="w-full bg-brand-teal hover:bg-brand-tealDark text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition-all mt-6 flex items-center justify-center gap-2">
+                        Entrar no Sistema <i class="ph-bold ph-arrow-right"></i>
+                    </button>
+                </form>
+
+                <!-- FORMULÁRIO DE CADASTRO -->
+                <form id="register-form" class="space-y-4 hidden">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nome Completo</label>
+                        <input type="text" id="reg-name" placeholder="Ex: Roberto Silva" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal focus:border-brand-teal outline-none transition-all" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">E-mail corporativo</label>
+                        <input type="email" id="reg-email" placeholder="seuemail@empresa.com.br" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal focus:border-brand-teal outline-none transition-all" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Criar Senha</label>
+                        <input type="password" id="reg-password" placeholder="••••••••" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal focus:border-brand-teal outline-none transition-all" required>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">Ao se cadastrar, seus dados e rotas criadas ficarão sincronizados no seu perfil em qualquer dispositivo.</p>
+                    <button type="submit" class="w-full bg-brand-yellow hover:bg-brand-yellowDark text-gray-900 font-semibold py-3 px-4 rounded-lg shadow-md transition-all mt-4 flex items-center justify-center gap-2">
+                        Cadastrar e Acessar <i class="ph-bold ph-user-plus"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="hidden md:flex w-1/2 bg-brand-teal relative items-center justify-center overflow-hidden">
+            <div class="relative z-10 text-white text-center p-12">
+                <i class="ph-duotone ph-map-trifold text-9xl text-brand-yellow mb-6"></i>
+                <h2 class="text-4xl font-bold mb-4">Gestão de Entregas</h2>
+                <p class="text-teal-100 text-lg max-w-md mx-auto">Otimização de rotas com traçado real pelas ruas no Google Maps, edição de pontos, importação de planilhas e sincronização na nuvem.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP LAYOUT -->
+    <div id="app-layout" class="hidden flex h-screen w-full bg-gray-50">
+        
+        <!-- Sidebar -->
+        <aside id="sidebar" class="w-64 bg-white border-r border-gray-200 flex flex-col transition-all duration-300 relative z-20 shadow-sm">
+            <div class="p-4 border-b border-gray-100 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i class="ph-fill ph-path text-2xl text-brand-teal"></i>
+                    <span class="text-xl font-bold text-gray-800">Flashroute</span>
+                </div>
+            </div>
+            
+            <div class="p-4 border-b border-gray-100 space-y-2">
+                <button onclick="showView('import-view')" class="w-full bg-brand-yellow hover:bg-brand-yellowDark text-gray-900 font-semibold py-2.5 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2">
+                    <i class="ph-bold ph-plus"></i> Nova Rota
+                </button>
+                <button onclick="openManualAddressModal()" class="w-full bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-2 px-3 rounded-lg text-sm transition-all flex items-center justify-center gap-2">
+                    <i class="ph-bold ph-map-pin"></i> Add Endereço Avulso
+                </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto py-4">
+                <div class="px-4 mb-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Rotas Salvas</div>
+                <ul id="saved-routes-list" class="space-y-1 px-2">
+                    <!-- Populated via JS -->
+                </ul>
+            </div>
+
+            <div class="p-4 border-t border-gray-200 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-brand-tealLight text-brand-teal flex items-center justify-center font-bold text-lg" id="user-avatar">
+                    U
+                </div>
+                <div class="flex-1 truncate">
+                    <p class="text-sm font-semibold text-gray-800 truncate" id="user-name-display">Usuário</p>
+                    <p class="text-xs text-gray-500 truncate">Sincronizado na Nuvem</p>
+                </div>
+                <button onclick="logout()" class="text-gray-400 hover:text-red-500 p-1" title="Sair">
+                    <i class="ph-bold ph-sign-out"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main id="main-content" class="flex-1 flex flex-col h-screen overflow-hidden relative">
+            
+            <!-- Top Nav -->
+            <header id="top-nav" class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-6 shrink-0 shadow-sm z-10">
+                <h2 id="current-view-title" class="text-lg font-semibold text-gray-800">Visão Geral</h2>
+                <div class="flex items-center gap-3">
+                    <button onclick="openManualAddressModal()" class="bg-teal-50 hover:bg-teal-100 text-brand-teal text-sm font-medium py-1.5 px-3 rounded-lg transition-all flex items-center gap-1.5">
+                        <i class="ph-bold ph-plus-circle"></i> Novo Endereço
+                    </button>
+                    <span class="text-xs font-semibold bg-green-100 text-green-800 px-2.5 py-1 rounded-full flex items-center gap-1">
+                        <i class="ph-fill ph-cloud-check"></i> Dados Salvos no Perfil
+                    </span>
+                </div>
+            </header>
+
+            <!-- VIEW: Dashboard / Empty -->
+            <div id="dashboard-view" class="flex-1 flex flex-col items-center justify-center p-8 bg-gray-50">
+                <i class="ph-duotone ph-map-pin-line text-7xl text-brand-teal mb-4"></i>
+                <h3 class="text-2xl font-bold text-gray-700 mb-2">Nenhuma rota selecionada</h3>
+                <p class="text-gray-500 text-center max-w-md mb-8">Importe sua planilha de entregas ou cadastre endereços manualmente para traçar rotas no Google Maps pelas ruas.</p>
+                <div class="flex gap-4">
+                    <button onclick="showView('import-view')" class="bg-brand-teal hover:bg-brand-tealDark text-white font-semibold py-3 px-6 rounded-lg shadow-md transition-all flex items-center gap-2">
+                        <i class="ph-bold ph-file-xls"></i> Importar Planilha
+                    </button>
+                    <button onclick="openManualAddressModal()" class="bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-semibold py-3 px-6 rounded-lg shadow-sm transition-all flex items-center gap-2">
+                        <i class="ph-bold ph-pencil-line"></i> Cadastrar Manualmente
+                    </button>
+                </div>
+            </div>
+
+            <!-- VIEW: Import Excel -->
+            <div id="import-view" class="hidden flex-1 flex flex-col p-8 bg-gray-50 overflow-y-auto">
+                <div class="max-w-3xl w-full mx-auto bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-800" id="import-title">Importar Planilha de Entregas</h3>
+                            <p class="text-sm text-gray-500 mt-1">Carregue o arquivo com dados de NF, Pedidos e Endereços.</p>
+                        </div>
+                    </div>
+
+                    <div class="p-8" id="upload-step">
+                        <!-- Input oculta para abrir seletor de arquivos do computador -->
+                        <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleFileUpload(event)">
+                        
+                        <div class="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center hover:bg-gray-50 hover:border-brand-teal transition-all cursor-pointer group" onclick="document.getElementById('excel-file-input').click()">
+                            <div class="w-16 h-16 bg-brand-tealLight text-brand-teal rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                                <i class="ph-bold ph-upload-simple text-3xl"></i>
+                            </div>
+                            <h4 class="text-lg font-semibold text-gray-700 mb-1">Clique para selecionar a planilha de entregas</h4>
+                            <p class="text-sm text-gray-500 mb-4">Formatos suportados: .xlsx, .csv (Modelo Google My Maps / Luzia)</p>
+                            <span class="inline-block bg-white border border-gray-200 px-4 py-2 rounded-lg text-sm font-medium text-gray-600 shadow-sm group-hover:border-brand-teal">
+                                Carregar Arquivo
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Mapping Step -->
+                    <div class="hidden p-8" id="mapping-step">
+                        <div class="flex items-center gap-3 mb-6 text-green-700 bg-green-50 p-3.5 rounded-lg border border-green-200">
+                            <i class="ph-fill ph-check-circle text-xl"></i>
+                            <span class="text-sm font-medium" id="import-success-msg">Planilha processada com sucesso! Mapeamento de colunas realizado.</span>
+                        </div>
+
+                        <h4 class="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">Resumo dos Dados Carregados:</h4>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8" id="mapping-summary">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+
+                        <div class="flex justify-end gap-3">
+                            <button onclick="resetImport()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-all">Cancelar</button>
+                            <button onclick="generateRoute()" class="px-5 py-2 bg-brand-teal hover:bg-brand-tealDark text-white rounded-lg font-medium shadow-md transition-all flex items-center gap-2">
+                                <i class="ph-bold ph-map-trifold"></i> Gerar Rota no Mapa
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: Route Planner (Map + List) -->
+            <div id="planner-view" class="hidden flex-1 flex flex-col md:flex-row h-full overflow-hidden">
+                
+                <!-- Print Header -->
+                <div class="print-header w-full p-4 border-b">
+                    <h1 class="text-2xl font-bold text-gray-900">Relatório Oficial de Entrega - Flashroute</h1>
+                    <p class="text-gray-600" id="print-route-name">Rota: ...</p>
+                </div>
+
+                <!-- Stops Sidebar -->
+                <div id="route-list-container" class="w-full md:w-[420px] bg-white border-r border-gray-200 flex flex-col h-full z-10 shadow-lg shrink-0">
+                    
+                    <div class="p-4 border-b border-gray-200 bg-gray-50 shrink-0" id="actions-bar">
+                        <div class="flex items-center justify-between mb-2">
+                            <input type="text" id="route-name-input" value="Nova Rota de Entregas" class="font-bold text-lg text-gray-800 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-brand-teal focus:outline-none w-3/4 px-1 py-0.5 transition-all">
+                            <span class="text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded-full" id="route-duration-badge"><i class="ph-bold ph-clock"></i> ~1h 45m</span>
+                        </div>
+                        
+                        <!-- Control Buttons -->
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <button onclick="optimizeRoute()" class="bg-gray-800 hover:bg-gray-900 text-white text-xs font-semibold py-2 px-3 rounded-lg shadow-sm transition-all flex items-center justify-center gap-1">
+                                <i class="ph-bold ph-arrows-merge"></i> Otimizar Trajeto
+                            </button>
+                            <button onclick="saveCurrentRoute()" class="bg-brand-teal hover:bg-brand-tealDark text-white text-xs font-semibold py-2 px-3 rounded-lg shadow-sm transition-all flex items-center justify-center gap-1">
+                                <i class="ph-bold ph-floppy-disk"></i> Salvar no Perfil
+                            </button>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="openManualAddressModal()" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-medium py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1">
+                                <i class="ph-bold ph-plus"></i> Add Endereço
+                            </button>
+                            <button onclick="triggerSheetUpdate()" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-medium py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1">
+                                <i class="ph-bold ph-arrows-clockwise"></i> Re-importar Planilha
+                            </button>
+                        </div>
+
+                        <button onclick="window.print()" class="w-full mt-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium py-1.5 px-3 rounded-lg transition-all flex items-center justify-center gap-1 no-print">
+                            <i class="ph-bold ph-printer"></i> Imprimir Rota em PDF
+                        </button>
+                    </div>
+
+                    <div class="px-4 py-2 bg-brand-tealLight border-b border-gray-200 text-xs text-brand-tealDark flex items-center justify-between shrink-0 no-print">
+                        <span><i class="ph-fill ph-hand-grabbing mr-1"></i>Arraste para reordenar. Clique para ver/editar.</span>
+                    </div>
+
+                    <!-- Stops List -->
+                    <div class="flex-1 overflow-y-auto p-3 bg-gray-50/50">
+                        <ul id="stops-list" class="space-y-2 pb-20">
+                            <!-- Populated by JS -->
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Map Area (Google Maps Layers + Routing over streets) -->
+                <div id="map-container" class="flex-1 relative h-[50vh] md:h-full z-0 bg-gray-200">
+                    <div id="map" class="w-full h-full"></div>
+                    
+                    <!-- Map Legend -->
+                    <div class="absolute top-4 right-4 z-[400] bg-white/90 backdrop-blur-sm p-3 rounded-xl shadow-lg border border-gray-200 no-print text-xs space-y-1.5">
+                        <div class="font-bold text-gray-700 uppercase tracking-wider border-b pb-1 mb-1">Legenda Google Maps</div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-3.5 h-3.5 rounded-full bg-green-500"></div>
+                            <span>1º Ponto (Partida)</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-3.5 h-3.5 rounded-full bg-brand-teal"></div>
+                            <span>Paradas Intermediárias</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-3.5 h-3.5 rounded-full bg-red-500"></div>
+                            <span>Última Entrega</span>
+                        </div>
+                        <div class="flex items-center gap-2 pt-1 border-t">
+                            <div class="w-4 h-1 bg-brand-yellow rounded"></div>
+                            <span>Rota Real (Pelas Ruas)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- MODAL: DETALHES E EDIÇÃO DO PONTO DE ENTREGA / NF -->
+    <div id="stop-detail-modal" class="fixed inset-0 z-[1000] bg-gray-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+            <button onclick="closeStopDetailModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1">
+                <i class="ph-bold ph-x text-xl"></i>
+            </button>
+            <div class="flex items-center gap-3 mb-4">
+                <div id="modal-stop-badge" class="w-10 h-10 rounded-full bg-brand-teal text-white font-bold flex items-center justify-center text-lg shadow-md">
+                    1
+                </div>
+                <div>
+                    <h3 id="modal-client-name" class="text-lg font-bold text-gray-800 leading-tight">Nome do Cliente</h3>
+                    <span id="modal-stop-type" class="text-xs font-semibold text-brand-teal">Ponto de Entrega</span>
+                </div>
+            </div>
+
+            <!-- MODO DE VISUALIZAÇÃO -->
+            <div id="modal-view-mode" class="space-y-3 border-t border-b border-gray-100 py-4 mb-4 text-sm">
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                        <span class="text-xs text-gray-400 block font-medium">Nº da Nota Fiscal (NF)</span>
+                        <span id="modal-nf" class="font-bold text-gray-800">NF-0000</span>
+                    </div>
+                    <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                        <span class="text-xs text-gray-400 block font-medium">Nº do Pedido</span>
+                        <span id="modal-order" class="font-bold text-gray-800">#0000</span>
+                    </div>
+                </div>
+
+                <div>
+                    <span class="text-xs text-gray-400 block font-medium">Endereço Completo:</span>
+                    <p id="modal-address" class="font-medium text-gray-700">Rua Exemplo, 123</p>
+                    <p id="modal-city" class="text-xs text-gray-500">Bairro - Cidade/UF</p>
+                </div>
+
+                <div class="bg-amber-50 p-3 rounded-lg border border-amber-200/60">
+                    <span class="text-xs font-semibold text-amber-800 block mb-0.5"><i class="ph-bold ph-note-pencil"></i> Observações da Planilha:</span>
+                    <p id="modal-notes" class="text-xs text-amber-900">Sem observações.</p>
+                </div>
+
+                <div class="pt-2 flex gap-2">
+                    <button onclick="enableEditMode()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 px-3 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5">
+                        <i class="ph-bold ph-pencil"></i> Editar Dados Deste Ponto
+                    </button>
+                </div>
+            </div>
+
+            <!-- MODO DE EDIÇÃO -->
+            <form id="modal-edit-mode" class="hidden space-y-3 border-t border-b border-gray-100 py-4 mb-4 text-xs">
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Cliente / Nome</label>
+                    <input type="text" id="edit-client" class="w-full px-3 py-1.5 border rounded-lg focus:ring-2 focus:ring-brand-teal outline-none" required>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block font-semibold text-gray-700 mb-1">Endereço / Rua</label>
+                        <input type="text" id="edit-address" class="w-full px-3 py-1.5 border rounded-lg focus:ring-2 focus:ring-brand-teal outline-none" required>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-gray-700 mb-1">Bairro</label>
+                        <input type="text" id="edit-neighborhood" class="w-full px-3 py-1.5 border rounded-lg focus:ring-2 focus:ring-brand-teal outline-none" required>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block font-semibold text-gray-700 mb-1">Nº NF</label>
+                        <input type="text" id="edit-nf" class="w-full px-3 py-1.5 border rounded-lg focus:ring-2 focus:ring-brand-teal outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-gray-700 mb-1">Nº Pedido</label>
+                        <input type="text" id="edit-order" class="w-full px-3 py-1.5 border rounded-lg focus:ring-2 focus:ring-brand-teal outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Observações</label>
+                    <textarea id="edit-notes" rows="2" class="w-full px-3 py-1.5 border rounded-lg focus:ring-2 focus:ring-brand-teal outline-none"></textarea>
+                </div>
+                <div class="flex gap-2 pt-1">
+                    <button type="button" onclick="disableEditMode()" class="w-1/2 bg-gray-100 text-gray-700 py-2 rounded-lg font-medium">Cancelar</button>
+                    <button type="submit" class="w-1/2 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-medium">Salvar Alterações</button>
+                </div>
+            </form>
+
+            <div class="flex justify-end gap-2">
+                <button onclick="closeStopDetailModal()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2.5 px-4 rounded-xl transition-all">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CADASTRAR ENDEREÇO MANUALMENTE -->
+    <div id="manual-address-modal" class="fixed inset-0 z-[1000] bg-gray-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+            <button onclick="closeManualAddressModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1">
+                <i class="ph-bold ph-x text-xl"></i>
+            </button>
+            
+            <div class="flex items-center gap-2 mb-4 border-b border-gray-100 pb-3">
+                <i class="ph-bold ph-map-pin-line text-2xl text-brand-teal"></i>
+                <h3 class="text-lg font-bold text-gray-800">Adicionar Endereço Manualmente</h3>
+            </div>
+
+            <form id="manual-address-form" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Nome do Cliente / Estabelecimento *</label>
+                    <input type="text" id="manual-client" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal outline-none" placeholder="Ex: Farmácia São João" required>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Endereço / Rua *</label>
+                        <input type="text" id="manual-street" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal outline-none" placeholder="Av. Pelinca, 200" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Bairro *</label>
+                        <input type="text" id="manual-neighborhood" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal outline-none" placeholder="Pelinca" required>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Cidade / Município *</label>
+                    <input type="text" id="manual-city" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal outline-none" value="Campos dos Goytacazes" required>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Nº Nota Fiscal (NF)</label>
+                        <input type="text" id="manual-nf" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal outline-none" placeholder="NF-9940">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Nº Pedido</label>
+                        <input type="text" id="manual-order" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal outline-none" placeholder="PED-88">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Observações / Instruções</label>
+                    <textarea id="manual-notes" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal outline-none" placeholder="Receber no portão dos fundos..."></textarea>
+                </div>
+
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" onclick="closeManualAddressModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 bg-brand-teal hover:bg-brand-tealDark text-white font-semibold rounded-lg shadow-md transition-all">
+                        Salvar e Incluir no Mapa
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Global Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-[9999] flex-col items-center justify-center">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm w-full mx-4">
+            <i class="ph-duotone ph-spinner-gap text-5xl text-brand-teal animate-spin mb-4"></i>
+            <h3 class="text-xl font-bold text-gray-800 mb-1" id="loading-title">Processando...</h3>
+            <p class="text-sm text-gray-500 text-center" id="loading-desc">Aguarde um momento.</p>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA & STATE ---
+        let map;
+        let routePolyline;
+        let markers = [];
+        let sortableList;
+        let activeStopEditingId = null;
+        let currentUser = { name: "Usuário", email: "" };
+
+        // Mock Inicial Padrão
+        const initialMockData = [
+            { id: '1', client: 'CD Principal Luzia', address: 'Av. Nilo Peçanha, 150', neighborhood: 'Centro', city: 'Campos dos Goytacazes', lat: -21.7589, lng: -41.3323, nf: 'NF-9001', order: 'PED-101', notes: 'Ponto Inicial de Saída dos Caminhões' },
+            { id: '2', client: 'Supermercado Silva', address: 'Rua Formosa, 200', neighborhood: 'Boa Vista', city: 'Campos dos Goytacazes', lat: -21.7635, lng: -41.3289, nf: 'NF-9002', order: 'PED-102', notes: 'Entregar na doca lateral com o conferente João' },
+            { id: '3', client: 'Padaria Central', address: 'Av. Alberto Torres, 310', neighborhood: 'Centro', city: 'Campos dos Goytacazes', lat: -21.7540, lng: -41.3220, nf: 'NF-9003', order: 'PED-103', notes: 'Receber somente até as 11h da manhã' },
+            { id: '4', client: 'Hortifruti Guanabara', address: 'Rua Barão do Amazonas, 85', neighborhood: 'Centro', city: 'Campos dos Goytacazes', lat: -21.7510, lng: -41.3180, nf: 'NF-9004', order: 'PED-104', notes: 'Mercadoria perecível, dar prioridade' },
+            { id: '5', client: 'Atacado Parque Kaissara', address: 'Av. 28 de Março, 500', neighborhood: 'Turf Club', city: 'Campos dos Goytacazes', lat: -21.7680, lng: -41.3390, nf: 'NF-9005', order: 'PED-105', notes: 'Destino Final da Rota do Dia' }
+        ];
+
+        let currentRouteStops = JSON.parse(JSON.stringify(initialMockData));
+        let savedRoutes = [];
+
+        // --- INIT ---
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('login-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                login('login');
+            });
+
+            document.getElementById('register-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                login('register');
+            });
+
+            document.getElementById('manual-address-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                saveManualAddress();
+            });
+
+            document.getElementById('modal-edit-mode').addEventListener('submit', (e) => {
+                e.preventDefault();
+                saveStopEdit();
+            });
+
+            initMap();
         });
 
-        const marker = L.marker([item.lat, item.lng], { icon: customIcon }).addTo(markersGroup);
+        // --- UPLOAD REAL DE PLANILHA (XLSX / CSV) ---
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
 
-        // Popup com informações completas ao clicar no ponto do mapa
-        marker.bindPopup(`
-          <div class="p-1 font-sans">
-            <h3 class="font-bold text-sm text-gray-800">${index + 1}. ${item.cliente}</h3>
-            <p class="text-xs text-gray-600 mb-2">${item.endereco}</p>
-            <div class="text-[11px] border-t pt-1 space-y-0.5 text-gray-500">
-              <p><strong>Pedido:</strong> ${item.pedido}</p>
-              <p><strong>Nota Fiscal:</strong> ${item.nf}</p>
-              <p><strong>Obs:</strong> ${item.obs}</p>
-            </div>
-            <button onclick="exibirDetalhes(${item.id})" class="mt-2 w-full bg-brand-teal text-white text-[10px] py-1 rounded font-bold">Ver Tudo</button>
-          </div>
-        `);
-      });
-    }
+            showLoading("Lendo Planilha...", "Extraindo clientes, notas fiscais e endereços...");
 
-    // Traça o caminho exato pelas ruas usando OSRM (Open Source Routing Machine)
-    async function tracarRotaVariavel() {
-      polylineLayer.clearLayers();
-      if (entregas.length < 2) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-      // Monta as coordenadas no formato 'lng,lat;lng,lat' exigido pela API OSRM
-      const coordinates = entregas.map(p => `${p.lng},${p.lat}`).join(';');
-      const url = `https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson`;
+                    if (json.length < 2) {
+                        alert("A planilha selecionada está vazia ou sem linhas de dados.");
+                        hideLoading();
+                        return;
+                    }
 
-      try {
-        const response = await fetch(url);
-        const data = await response.json();
+                    const headers = json[0].map(h => String(h).toLowerCase().trim());
+                    
+                    // Busca inteligente pelas colunas
+                    const clientIdx = headers.findIndex(h => h.includes('cliente') || h.includes('nome') || h.includes('destinatario'));
+                    const streetIdx = headers.findIndex(h => h.includes('rua') || h.includes('logradouro') || h.includes('endereco') || h.includes('endereço'));
+                    const neighIdx = headers.findIndex(h => h.includes('bairro'));
+                    const cityIdx = headers.findIndex(h => h.includes('cidade') || h.includes('municipio') || h.includes('município'));
+                    const nfIdx = headers.findIndex(h => h.includes('nf') || h.includes('nota') || h.includes('fiscal'));
+                    const orderIdx = headers.findIndex(h => h.includes('ped') || h.includes('pedido') || h.includes('ordem'));
+                    const notesIdx = headers.findIndex(h => h.includes('obs') || h.includes('observa') || h.includes('instru'));
 
-        if (data.routes && data.routes.length > 0) {
-          const route = data.routes[0];
-          const routeCoordinates = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
+                    let parsedStops = [];
 
-          // Desenha a linha sólida acompanhando as ruas exatas no mapa
-          const polyline = L.polyline(routeCoordinates, {
-            color: '#0d9488',
-            weight: 5,
-            opacity: 0.8
-          }).addTo(polylineLayer);
+                    for (let i = 1; i < json.length; i++) {
+                        const row = json[i];
+                        if (!row || row.length === 0) continue;
 
-          map.fitBounds(polyline.getBounds(), { padding: [40, 40] });
+                        const client = clientIdx !== -1 && row[clientIdx] ? String(row[clientIdx]) : `Entrega #${i}`;
+                        const address = streetIdx !== -1 && row[streetIdx] ? String(row[streetIdx]) : `Rua Importada, ${100 + i}`;
+                        const neighborhood = neighIdx !== -1 && row[neighIdx] ? String(row[neighIdx]) : 'Centro';
+                        const city = cityIdx !== -1 && row[cityIdx] ? String(row[cityIdx]) : 'Campos dos Goytacazes';
+                        const nf = nfIdx !== -1 && row[nfIdx] ? `NF-${row[nfIdx]}` : `NF-${9000 + i}`;
+                        const order = orderIdx !== -1 && row[orderIdx] ? `PED-${row[orderIdx]}` : `PED-${100 + i}`;
+                        const notes = notesIdx !== -1 && row[notesIdx] ? String(row[notesIdx]) : 'Importado via planilha Excel.';
 
-          // Atualiza tempo e distância calculados
-          const distKm = (route.distance / 1000).toFixed(1);
-          const durMin = Math.round(route.duration / 60);
+                        // Coordenadas simuladas com variação geográfica
+                        const baseLat = -21.7550 + (Math.random() - 0.5) * 0.03;
+                        const baseLng = -41.3250 + (Math.random() - 0.5) * 0.03;
 
-          document.getElementById('info-distancia').innerText = `${distKm} km`;
-          document.getElementById('info-tempo').innerText = `${durMin} min`;
+                        parsedStops.push({
+                            id: Date.now().toString() + i,
+                            client,
+                            address,
+                            neighborhood,
+                            city,
+                            lat: baseLat,
+                            lng: baseLng,
+                            nf,
+                            order,
+                            notes
+                        });
+                    }
+
+                    currentRouteStops = parsedStops;
+
+                    // Exibe Resumo
+                    const summaryEl = document.getElementById('mapping-summary');
+                    summaryEl.innerHTML = `
+                        <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 text-xs">
+                            <span class="text-gray-500 block">Arquivo Carregado:</span>
+                            <span class="font-semibold text-gray-800 text-sm">${file.name}</span>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 text-xs">
+                            <span class="text-gray-500 block">Total de Entregas Importadas:</span>
+                            <span class="font-semibold text-brand-teal text-sm">${parsedStops.length} Paradas Encontradas</span>
+                        </div>
+                    `;
+
+                    document.getElementById('import-success-msg').innerText = `Planilha "${file.name}" importada com sucesso!`;
+                    document.getElementById('upload-step').classList.add('hidden');
+                    document.getElementById('mapping-step').classList.remove('hidden');
+
+                    hideLoading();
+                } catch (err) {
+                    hideLoading();
+                    alert("Erro ao ler o arquivo Excel. Verifique se o formato está correto (.xlsx ou .csv).");
+                }
+            };
+
+            reader.readAsArrayBuffer(file);
         }
-      } catch (error) {
-        // Fallback para linha direta caso haja falha na requisição de rede
-        const fallbackCoords = entregas.map(p => [p.lat, p.lng]);
-        L.polyline(fallbackCoords, { color: '#0d9488', weight: 4, dashArray: '6, 8' }).addTo(polylineLayer);
-      }
-    }
 
-    // Algoritmo simples de simulação de otimização Mantendo Início e Fim fixos
-    function otimizarRota() {
-      if (entregas.length <= 3) return;
+        // --- ABAS DE LOGIN / CADASTRO ---
+        function switchAuthTab(tab) {
+            const loginForm = document.getElementById('login-form');
+            const registerForm = document.getElementById('register-form');
+            const tabLoginBtn = document.getElementById('tab-login-btn');
+            const tabRegBtn = document.getElementById('tab-register-btn');
 
-      const inicio = entregas[0];
-      const fim = entregas[entregas.length - 1];
-      let meio = entregas.slice(1, -1);
+            if (tab === 'login') {
+                loginForm.classList.remove('hidden');
+                registerForm.classList.add('hidden');
+                tabLoginBtn.className = "w-1/2 py-3 text-center font-semibold text-sm border-b-2 border-brand-teal text-brand-teal transition-all";
+                tabRegBtn.className = "w-1/2 py-3 text-center font-semibold text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-all";
+            } else {
+                loginForm.classList.add('hidden');
+                registerForm.classList.remove('hidden');
+                tabRegBtn.className = "w-1/2 py-3 text-center font-semibold text-sm border-b-2 border-brand-teal text-brand-teal transition-all";
+                tabLoginBtn.className = "w-1/2 py-3 text-center font-semibold text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-all";
+            }
+        }
 
-      // Reordena o meio de acordo com a proximidade geográfica simples
-      meio.sort((a, b) => {
-        const distA = Math.hypot(a.lat - inicio.lat, a.lng - inicio.lng);
-        const distB = Math.hypot(b.lat - inicio.lat, b.lng - inicio.lng);
-        return distA - distB;
-      });
+        // --- NAVIGATION & AUTH ---
+        function showView(viewId) {
+            const views = ['dashboard-view', 'import-view', 'planner-view'];
+            views.forEach(v => document.getElementById(v).classList.add('hidden'));
+            
+            document.getElementById(viewId).classList.remove('hidden');
 
-      entregas = [inicio, ...meio, fim];
-      renderizarApp();
-    }
+            const titles = {
+                'dashboard-view': 'Visão Geral',
+                'import-view': 'Importação de Planilha',
+                'planner-view': 'Roteirizador & Mapa de Entregas'
+            };
+            document.getElementById('current-view-title').innerText = titles[viewId];
 
-    // Modal de Detalhes do Ponto
-    function exibirDetalhes(id) {
-      const item = entregas.find(e => e.id === id);
-      if (!item) return;
+            if(viewId === 'planner-view') {
+                setTimeout(() => {
+                    map.invalidateSize();
+                }, 300);
+            }
+        }
 
-      const content = document.getElementById('modal-content');
-      content.innerHTML = `
-        <p><strong>Cliente / Local:</strong> ${item.cliente}</p>
-        <p><strong>Endereço:</strong> ${item.endereco}</p>
-        <p><strong>Número do Pedido:</strong> ${item.pedido}</p>
-        <p><strong>Número da NF:</strong> ${item.nf}</p>
-        <p><strong>Observações:</strong> ${item.obs}</p>
-        <p><strong>Coordenadas:</strong> ${item.lat}, ${item.lng}</p>
-      `;
-      document.getElementById('modal-details').classList.remove('hidden');
-    }
+        function login(mode) {
+            const emailInput = mode === 'login' ? document.getElementById('login-email').value : document.getElementById('reg-email').value;
+            const nameInput = mode === 'register' ? document.getElementById('reg-name').value : emailInput.split('@')[0];
 
-    function fecharModalDetalhes() {
-      document.getElementById('modal-details').classList.add('hidden');
-    }
+            if (!emailInput) {
+                alert("Por favor, preencha o e-mail.");
+                return;
+            }
 
-    // Adição Manual de Endereços
-    function adicionarNovoEnderecoModal() {
-      const cliente = prompt("Nome do Cliente/Local:");
-      if (!cliente) return;
-      const endereco = prompt("Endereço Completo:");
-      if (!endereco) return;
+            showLoading(mode === 'login' ? "Autenticando..." : "Criando Conta...", "Sincronizando perfil na nuvem...");
+            
+            setTimeout(() => {
+                currentUser = { name: nameInput || "Usuário", email: emailInput };
 
-      // Gera pequenas variações geográficas para fins de teste no mapa
-      const last = entregas[entregas.length - 1];
-      const newLat = last ? last.lat + (Math.random() - 0.5) * 0.02 : -22.9000;
-      const newLng = last ? last.lng + (Math.random() - 0.5) * 0.02 : -43.1800;
+                document.getElementById('user-name-display').innerText = currentUser.name;
+                document.getElementById('user-avatar').innerText = currentUser.name.charAt(0).toUpperCase();
 
-      const novo = {
-        id: Date.now(),
-        cliente: cliente,
-        endereco: endereco,
-        lat: parseFloat(newLat.toFixed(4)),
-        lng: parseFloat(newLng.toFixed(4)),
-        pedido: `PED-${Math.floor(1000 + Math.random() * 9000)}`,
-        nf: `NF-${Math.floor(1000 + Math.random() * 9000)}`,
-        obs: "Adicionado Manualmente"
-      };
+                hideLoading();
+                document.getElementById('login-view').classList.add('hidden');
+                document.getElementById('app-layout').classList.remove('hidden');
+                loadSavedRoutes();
+                showView('dashboard-view');
+            }, 800);
+        }
 
-      entregas.push(novo);
-      renderizarApp();
-    }
+        function logout() {
+            document.getElementById('app-layout').classList.add('hidden');
+            document.getElementById('login-view').classList.remove('hidden');
+            document.getElementById('login-form').reset();
+            document.getElementById('register-form').reset();
+        }
 
-    function salvarRota() {
-      alert("Rota salva com sucesso no seu perfil de usuário!");
-    }
+        function triggerSheetUpdate() {
+            document.getElementById('excel-file-input').click();
+        }
 
-    function toggleLogin() {
-      alert("Saindo do sistema...");
-    }
+        function resetImport() {
+            document.getElementById('upload-step').classList.remove('hidden');
+            document.getElementById('mapping-step').classList.add('hidden');
+            document.getElementById('excel-file-input').value = "";
+            showView('dashboard-view');
+        }
 
-    window.onload = initMap;
-  </script>
+        function generateRoute() {
+            showLoading("Gerando Rota no Mapa...", "Otimizando traçado pelas ruas e plotando pontos.");
+            setTimeout(() => {
+                hideLoading();
+                renderStopsList();
+                updateMap();
+                showView('planner-view');
+            }, 1000);
+        }
+
+        // --- MANUAL ADDRESS LOGIC ---
+        function openManualAddressModal() {
+            document.getElementById('manual-address-modal').classList.remove('hidden');
+        }
+
+        function closeManualAddressModal() {
+            document.getElementById('manual-address-modal').classList.add('hidden');
+            document.getElementById('manual-address-form').reset();
+        }
+
+        function saveManualAddress() {
+            const client = document.getElementById('manual-client').value;
+            const street = document.getElementById('manual-street').value;
+            const neighborhood = document.getElementById('manual-neighborhood').value;
+            const city = document.getElementById('manual-city').value;
+            const nf = document.getElementById('manual-nf').value;
+            const order = document.getElementById('manual-order').value;
+            const notes = document.getElementById('manual-notes').value;
+
+            const baseLat = -21.7550 + (Math.random() - 0.5) * 0.02;
+            const baseLng = -41.3250 + (Math.random() - 0.5) * 0.02;
+
+            const newStop = {
+                id: Date.now().toString(),
+                client,
+                address: street,
+                neighborhood,
+                city,
+                lat: baseLat,
+                lng: baseLng,
+                nf: nf || 'N/A',
+                order: order || 'N/A',
+                notes: notes || 'Cadastrado manualmente.'
+            };
+
+            if(currentRouteStops.length > 0) {
+                currentRouteStops.splice(currentRouteStops.length - 1, 0, newStop);
+            } else {
+                currentRouteStops.push(newStop);
+            }
+
+            closeManualAddressModal();
+            renderStopsList();
+            updateMap();
+
+            if (document.getElementById('planner-view').classList.contains('hidden')) {
+                showView('planner-view');
+            }
+        }
+
+        // --- DETAILED & EDITABLE STOP MODAL ---
+        function openStopDetailModal(stopId) {
+            activeStopEditingId = stopId;
+            const stop = currentRouteStops.find(s => s.id === stopId);
+            if(!stop) return;
+
+            disableEditMode();
+
+            const idx = currentRouteStops.findIndex(s => s.id === stopId);
+            document.getElementById('modal-stop-badge').innerText = idx + 1;
+            document.getElementById('modal-client-name').innerText = stop.client;
+            document.getElementById('modal-address').innerText = stop.address;
+            document.getElementById('modal-city').innerText = `${stop.neighborhood} - ${stop.city}`;
+            document.getElementById('modal-nf').innerText = stop.nf || 'N/A';
+            document.getElementById('modal-order').innerText = stop.order || 'N/A';
+            document.getElementById('modal-notes').innerText = stop.notes || 'Sem observações cadastradas.';
+
+            // Preenche Formulário de Edição
+            document.getElementById('edit-client').value = stop.client;
+            document.getElementById('edit-address').value = stop.address;
+            document.getElementById('edit-neighborhood').value = stop.neighborhood;
+            document.getElementById('edit-nf').value = stop.nf || '';
+            document.getElementById('edit-order').value = stop.order || '';
+            document.getElementById('edit-notes').value = stop.notes || '';
+
+            if(idx === 0) {
+                document.getElementById('modal-stop-type').innerText = 'Ponto Inicial (Partida)';
+            } else if(idx === currentRouteStops.length - 1) {
+                document.getElementById('modal-stop-type').innerText = 'Última Entrega (Destino Final)';
+            } else {
+                document.getElementById('modal-stop-type').innerText = `Parada nº ${idx + 1}`;
+            }
+
+            document.getElementById('stop-detail-modal').classList.remove('hidden');
+        }
+
+        function enableEditMode() {
+            document.getElementById('modal-view-mode').classList.add('hidden');
+            document.getElementById('modal-edit-mode').classList.remove('hidden');
+        }
+
+        function disableEditMode() {
+            document.getElementById('modal-view-mode').classList.remove('hidden');
+            document.getElementById('modal-edit-mode').classList.add('hidden');
+        }
+
+        function saveStopEdit() {
+            if (!activeStopEditingId) return;
+
+            const stop = currentRouteStops.find(s => s.id === activeStopEditingId);
+            if (stop) {
+                stop.client = document.getElementById('edit-client').value;
+                stop.address = document.getElementById('edit-address').value;
+                stop.neighborhood = document.getElementById('edit-neighborhood').value;
+                stop.nf = document.getElementById('edit-nf').value;
+                stop.order = document.getElementById('edit-order').value;
+                stop.notes = document.getElementById('edit-notes').value;
+
+                renderStopsList();
+                updateMap();
+                closeStopDetailModal();
+            }
+        }
+
+        function closeStopDetailModal() {
+            document.getElementById('stop-detail-modal').classList.add('hidden');
+            activeStopEditingId = null;
+        }
+
+        // --- RENDER STOPS LIST ---
+        function renderStopsList() {
+            const listEl = document.getElementById('stops-list');
+            listEl.innerHTML = '';
+
+            currentRouteStops.forEach((stop, index) => {
+                const li = document.createElement('li');
+                li.className = 'stop-item bg-white p-3 rounded-xl shadow-sm border border-gray-200 flex items-center gap-3 relative group transition-all hover:border-brand-teal cursor-pointer';
+                li.dataset.id = stop.id;
+
+                let iconHtml = `<div class="w-7 h-7 rounded-full bg-brand-tealLight text-brand-teal font-bold flex items-center justify-center text-xs shrink-0 border border-brand-teal/20">${index + 1}</div>`;
+                let tagHtml = '';
+
+                if(index === 0) {
+                    iconHtml = `<div class="w-7 h-7 rounded-full bg-green-500 text-white font-bold flex items-center justify-center text-xs shrink-0 shadow-sm"><i class="ph-bold ph-play"></i></div>`;
+                    tagHtml = `<span class="text-[10px] bg-green-100 text-green-800 px-1.5 py-0.5 rounded font-bold uppercase">Início</span>`;
+                } else if(index === currentRouteStops.length - 1) {
+                    iconHtml = `<div class="w-7 h-7 rounded-full bg-red-500 text-white font-bold flex items-center justify-center text-xs shrink-0 shadow-sm"><i class="ph-bold ph-flag-checkered"></i></div>`;
+                    tagHtml = `<span class="text-[10px] bg-red-100 text-red-800 px-1.5 py-0.5 rounded font-bold uppercase">Fim</span>`;
+                }
+
+                li.innerHTML = `
+                    <div class="drag-handle text-gray-300 hover:text-gray-600 cursor-grab active:cursor-grabbing p-1" title="Arrastar para reordenar">
+                        <i class="ph-bold ph-dots-six-vertical text-lg"></i>
+                    </div>
+                    ${iconHtml}
+                    <div class="flex-1 truncate" onclick="openStopDetailModal('${stop.id}')">
+                        <div class="flex items-center gap-1.5">
+                            <h5 class="font-semibold text-xs text-gray-800 truncate">${stop.client}</h5>
+                            ${tagHtml}
+                        </div>
+                        <p class="text-[11px] text-gray-500 truncate">${stop.address} • ${stop.neighborhood}</p>
+                        <div class="flex items-center gap-2 mt-0.5 text-[10px] text-gray-400 font-medium">
+                            <span>NF: ${stop.nf || 'N/A'}</span>
+                            <span>•</span>
+                            <span>Ped: ${stop.order || 'N/A'}</span>
+                        </div>
+                    </div>
+                    <button onclick="removeStop('${stop.id}')" class="text-gray-300 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity no-print" title="Remover">
+                        <i class="ph-bold ph-trash"></i>
+                    </button>
+                `;
+                listEl.appendChild(li);
+            });
+
+            if(sortableList) sortableList.destroy();
+            sortableList = new Sortable(listEl, {
+                handle: '.drag-handle',
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                onEnd: function () {
+                    const newOrderIds = Array.from(listEl.children).map(li => li.dataset.id);
+                    currentRouteStops = newOrderIds.map(id => currentRouteStops.find(s => s.id === id));
+                    renderStopsList();
+                    updateMap();
+                },
+            });
+        }
+
+        function removeStop(id) {
+            if(confirm('Deseja remover esta entrega da rota?')) {
+                currentRouteStops = currentRouteStops.filter(s => s.id !== id);
+                renderStopsList();
+                updateMap();
+            }
+        }
+
+        function optimizeRoute() {
+            showLoading("Calculando Rota Ótima...", "Reordenando paradas por proximidade geográfica.");
+            setTimeout(() => {
+                if(currentRouteStops.length <= 2) { hideLoading(); return; }
+
+                const start = currentRouteStops[0];
+                const end = currentRouteStops[currentRouteStops.length - 1];
+                let middles = currentRouteStops.slice(1, -1);
+
+                let sortedMiddles = [];
+                let currentPos = start;
+
+                while(middles.length > 0) {
+                    let nearestIdx = 0;
+                    let minDist = Infinity;
+                    for(let i = 0; i < middles.length; i++) {
+                        let dist = Math.hypot(middles[i].lat - currentPos.lat, middles[i].lng - currentPos.lng);
+                        if(dist < minDist) {
+                            minDist = dist;
+                            nearestIdx = i;
+                        }
+                    }
+                    sortedMiddles.push(middles[nearestIdx]);
+                    currentPos = middles[nearestIdx];
+                    middles.splice(nearestIdx, 1);
+                }
+
+                currentRouteStops = [start, ...sortedMiddles, end];
+                renderStopsList();
+                updateMap();
+                hideLoading();
+            }, 800);
+        }
+
+        // --- MAP LOGIC ---
+        function initMap() {
+            map = L.map('map', { zoomControl: false }).setView([-21.7535, -41.3235], 13);
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+            L.tileLayer('http://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+                maxZoom: 20,
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                attribution: '&copy; Google Maps'
+            }).addTo(map);
+        }
+
+        function updateMap() {
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+            if(routePolyline) map.removeLayer(routePolyline);
+
+            if(currentRouteStops.length === 0) return;
+
+            const bounds = L.latLngBounds();
+
+            currentRouteStops.forEach((stop, index) => {
+                let badgeColor = 'bg-brand-teal';
+                if(index === 0) badgeColor = 'bg-green-500';
+                if(index === currentRouteStops.length - 1) badgeColor = 'bg-red-500';
+
+                const customIcon = L.divIcon({
+                    className: 'custom-map-marker',
+                    html: `
+                        <div class="w-8 h-8 ${badgeColor} text-white font-bold rounded-full flex items-center justify-center border-2 border-white shadow-lg text-xs transform transition-transform hover:scale-125">
+                            ${index + 1}
+                        </div>
+                    `,
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 16]
+                });
+
+                const popupContent = `
+                    <div class="p-1 font-sans">
+                        <div class="font-bold text-sm text-gray-800">${stop.client}</div>
+                        <div class="text-xs text-gray-500 mb-1">${stop.address}</div>
+                        <div class="text-[11px] bg-teal-50 text-brand-teal font-semibold p-1 rounded mb-2">NF: ${stop.nf || 'N/A'}</div>
+                        <button onclick="openStopDetailModal('${stop.id}')" class="w-full bg-brand-teal text-white text-xs font-semibold py-1 rounded shadow-sm hover:bg-brand-tealDark">Ver / Editar Dados</button>
+                    </div>
+                `;
+
+                const marker = L.marker([stop.lat, stop.lng], { icon: customIcon })
+                    .bindPopup(popupContent)
+                    .addTo(map);
+
+                markers.push(marker);
+                bounds.extend([stop.lat, stop.lng]);
+            });
+
+            // DESENHA ROTA SEGUINDO AS RUAS UTILIZANDO OSRM
+            if (currentRouteStops.length >= 2) {
+                const coordinatesString = currentRouteStops.map(s => `${s.lng},${s.lat}`).join(';');
+                const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordinatesString}?overview=full&geometries=geojson`;
+
+                fetch(osrmUrl)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.routes && data.routes.length > 0) {
+                            const routeGeoJSON = data.routes[0].geometry;
+                            const routeLatLngs = routeGeoJSON.coordinates.map(coord => [coord[1], coord[0]]);
+
+                            routePolyline = L.polyline(routeLatLngs, {
+                                color: '#F6B21A',
+                                weight: 6,
+                                opacity: 0.9,
+                                lineCap: 'round',
+                                lineJoin: 'round'
+                            }).addTo(map);
+                        } else {
+                            drawFallbackPolyline();
+                        }
+                    })
+                    .catch(() => {
+                        drawFallbackPolyline();
+                    });
+            }
+
+            if(currentRouteStops.length > 0) {
+                map.fitBounds(bounds, { padding: [60, 60] });
+            }
+        }
+
+        function drawFallbackPolyline() {
+            const latlngs = currentRouteStops.map(s => [s.lat, s.lng]);
+            routePolyline = L.polyline(latlngs, {
+                color: '#F6B21A',
+                weight: 5,
+                opacity: 0.9,
+                lineCap: 'round',
+                lineJoin: 'round'
+            }).addTo(map);
+        }
+
+        // --- SALVAR & EXCLUIR ROTAS SALVAS ---
+        function saveCurrentRoute() {
+            const name = document.getElementById('route-name-input').value || 'Rota sem Nome';
+            showLoading("Salvando Rota...", "Sincronizando com o perfil do usuário na nuvem...");
+            
+            setTimeout(() => {
+                hideLoading();
+                const existingIndex = savedRoutes.findIndex(r => r.name === name);
+                const routeObj = { id: Date.now().toString(), name, date: new Date().toLocaleDateString('pt-BR'), data: JSON.parse(JSON.stringify(currentRouteStops)) };
+                
+                if (existingIndex >= 0) {
+                    savedRoutes[existingIndex] = routeObj;
+                } else {
+                    savedRoutes.push(routeObj);
+                }
+
+                loadSavedRoutes();
+                alert(`Rota "${name}" salva com sucesso no seu perfil!`);
+            }, 800);
+        }
+
+        function deleteSavedRoute(routeId, event) {
+            event.stopPropagation(); // Impede a abertura da rota ao clicar na lixeira
+            if (confirm("Tem certeza que deseja excluir esta rota salva?")) {
+                savedRoutes = savedRoutes.filter(r => r.id !== routeId);
+                loadSavedRoutes();
+            }
+        }
+
+        function loadSavedRoutes() {
+            const listEl = document.getElementById('saved-routes-list');
+            listEl.innerHTML = '';
+
+            if (savedRoutes.length === 0) {
+                savedRoutes = [
+                    { id: 'default-1', name: 'Rota Distribuição - Campos', date: '02/09/2026', data: JSON.parse(JSON.stringify(initialMockData)) }
+                ];
+            }
+
+            savedRoutes.forEach((route) => {
+                const li = document.createElement('li');
+                li.className = "flex items-center justify-between p-2 rounded-lg hover:bg-gray-100 group transition-all cursor-pointer";
+                li.innerHTML = `
+                    <div class="truncate flex-1 pr-2">
+                        <p class="text-xs font-semibold text-gray-800 truncate">${route.name}</p>
+                        <p class="text-[10px] text-gray-400">${route.data.length} paradas • ${route.date}</p>
+                    </div>
+                    <button onclick="deleteSavedRoute('${route.id}', event)" class="text-gray-300 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Excluir Rota">
+                        <i class="ph-bold ph-trash text-sm"></i>
+                    </button>
+                `;
+                li.onclick = () => {
+                    currentRouteStops = JSON.parse(JSON.stringify(route.data));
+                    document.getElementById('route-name-input').value = route.name;
+                    renderStopsList();
+                    updateMap();
+                    showView('planner-view');
+                };
+                listEl.appendChild(li);
+            });
+        }
+
+        // --- UTILS ---
+        function showLoading(title, desc) {
+            document.getElementById('loading-title').innerText = title;
+            document.getElementById('loading-desc').innerText = desc;
+            document.getElementById('loading-overlay').classList.add('active');
+        }
+        function hideLoading() {
+            document.getElementById('loading-overlay').classList.remove('active');
+        }
+
+        window.onbeforeprint = function() {
+            document.getElementById('print-route-name').innerText = "Rota: " + document.getElementById('route-name-input').value;
+        };
+    </script>
 </body>
 </html>
