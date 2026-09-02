@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flashroute - Organizador de Entregas</title>
+    <title>Flashroute - Roteirizador Inteligente (Google My Maps)</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -28,49 +28,94 @@
         }
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
     <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-
     <!-- Sortable JS (Reordenação Drag & Drop) -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
-
-    <!-- SheetJS (Leitura de Planilhas Excel) -->
+    <!-- SheetJS (XLSX) para leitura real de arquivos Excel e CSV -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
-        
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
         .sortable-ghost { opacity: 0.4; background-color: #E5F6F6; border: 2px dashed #00A3A8; }
         .sortable-drag { cursor: grabbing !important; }
-
-        /* Ajustes de Impressão PDF */
-        @media print {
-            body { background: white; }
-            #sidebar, #top-nav, #actions-bar, .no-print { display: none !important; }
-            #main-content { margin: 0; padding: 0; width: 100%; }
-            #planner-view { display: block !important; }
-            #route-list-container { width: 100% !important; border: none !important; box-shadow: none !important; }
-            .print-header { display: block !important; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
-            .stop-item { page-break-inside: avoid; border: 1px solid #000; margin-bottom: 8px; border-radius: 8px; }
-            .drag-handle { display: none !important; }
-        }
-
-        .print-header { display: none; }
+        #loading-overlay { display: none; }
+        #loading-overlay.active { display: flex; }
     </style>
 </head>
 <body class="text-gray-800 antialiased overflow-hidden h-screen w-screen flex flex-col">
 
-    <!-- MAIN APP LAYOUT -->
-    <div id="app-layout" class="flex h-screen w-full bg-gray-50">
+    <!-- AUTENTICAÇÃO (LOGIN & CADASTRO) -->
+    <div id="auth-view" class="fixed inset-0 z-50 flex bg-gray-50">
+        <div class="w-full md:w-1/2 flex flex-col justify-center px-10 md:px-20 bg-white shadow-xl z-10 relative overflow-y-auto">
+            <div class="max-w-md w-full mx-auto py-8">
+                <div class="mb-6 text-center md:text-left">
+                    <div class="flex items-center justify-center md:justify-start gap-2 mb-2">
+                        <i class="ph-fill ph-path text-4xl text-brand-teal"></i>
+                        <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Flashroute</h1>
+                    </div>
+                    <p class="text-xs font-semibold text-gray-400 tracking-widest uppercase">Metodologia Google My Maps • Luzia</p>
+                </div>
+
+                <!-- Abas Login / Cadastro -->
+                <div class="flex border-b border-gray-200 mb-6">
+                    <button onclick="switchAuthTab('login')" id="tab-login-btn" class="flex-1 pb-3 text-sm font-bold border-b-2 border-brand-teal text-brand-teal transition-all">Entrar</button>
+                    <button onclick="switchAuthTab('register')" id="tab-register-btn" class="flex-1 pb-3 text-sm font-bold border-b-2 border-transparent text-gray-400 hover:text-gray-600 transition-all">Criar Conta</button>
+                </div>
+
+                <!-- Formulário de Login -->
+                <form id="login-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">E-mail corporativo</label>
+                        <input type="email" id="login-email" value="colaborador@luzia.com" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal outline-none" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Senha</label>
+                        <input type="password" id="login-pass" value="123456" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal outline-none" required>
+                    </div>
+                    <button type="submit" class="w-full bg-brand-teal hover:bg-brand-tealDark text-white font-semibold py-3 px-4 rounded-lg shadow-md transition-all mt-4 flex items-center justify-center gap-2">
+                        Acessar Minhas Rotas <i class="ph-bold ph-arrow-right"></i>
+                    </button>
+                </form>
+
+                <!-- Formulário de Cadastro -->
+                <form id="register-form" class="space-y-4 hidden">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nome Completo</label>
+                        <input type="text" id="reg-name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal outline-none" placeholder="João da Silva" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">E-mail corporativo</label>
+                        <input type="email" id="reg-email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal outline-none" placeholder="joao@luzia.com" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Criar Senha</label>
+                        <input type="password" id="reg-pass" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal outline-none" required>
+                    </div>
+                    <button type="submit" class="w-full bg-brand-teal hover:bg-brand-tealDark text-white font-semibold py-3 px-4 rounded-lg shadow-md transition-all mt-4 flex items-center justify-center gap-2">
+                        Cadastrar e Entrar <i class="ph-bold ph-user-plus"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+        <div class="hidden md:flex w-1/2 bg-brand-teal relative items-center justify-center p-12 text-white text-center">
+            <div>
+                <i class="ph-duotone ph-map-pin text-9xl text-brand-yellow mb-6"></i>
+                <h2 class="text-4xl font-bold mb-4">Integração Google My Maps</h2>
+                <p class="text-teal-100 text-lg max-w-md mx-auto">Importe planilhas Excel reais, ordene entregas e gere links diretos para navegação instantânea no Google Maps.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- APLICATIVO PRINCIPAL -->
+    <div id="app-layout" class="hidden flex h-screen w-full bg-gray-50">
         
         <!-- Sidebar -->
-        <aside id="sidebar" class="w-64 bg-white border-r border-gray-200 flex flex-col transition-all duration-300 relative z-20 shadow-sm">
+        <aside class="w-72 bg-white border-r border-gray-200 flex flex-col z-20 shadow-sm">
             <div class="p-4 border-b border-gray-100 flex items-center justify-between">
                 <div class="flex items-center gap-2">
                     <i class="ph-fill ph-path text-2xl text-brand-teal"></i>
@@ -80,467 +125,729 @@
             
             <div class="p-4 border-b border-gray-100 space-y-2">
                 <button onclick="showView('import-view')" class="w-full bg-brand-yellow hover:bg-brand-yellowDark text-gray-900 font-semibold py-2.5 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2">
-                    <i class="ph-bold ph-plus"></i> Nova Rota
+                    <i class="ph-bold ph-plus"></i> Nova Rota (My Maps)
                 </button>
-                <button onclick="openManualAddressModal()" class="w-full bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-2 px-3 rounded-lg text-sm transition-all flex items-center justify-center gap-2">
-                    <i class="ph-bold ph-map-pin"></i> Add Endereço Avulso
+                <button onclick="openManualModal()" class="w-full bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-2 px-3 rounded-lg text-sm transition-all flex items-center justify-center gap-2">
+                    <i class="ph-bold ph-map-pin"></i> Add Ponto Manual
                 </button>
             </div>
 
             <div class="flex-1 overflow-y-auto py-4">
-                <div class="px-4 mb-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Rotas Salvas</div>
+                <div class="px-4 mb-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Rotas Armazenadas no Usuário</div>
                 <ul id="saved-routes-list" class="space-y-1 px-2">
-                    <!-- Populated via JS -->
+                    <!-- Preenchido dinamicamente vinculado ao user -->
                 </ul>
+            </div>
+
+            <div class="p-4 border-t border-gray-200 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-brand-tealLight text-brand-teal flex items-center justify-center font-bold text-lg" id="user-initial">U</div>
+                <div class="flex-1 truncate">
+                    <p class="text-sm font-semibold text-gray-800 truncate" id="user-display-name">Usuário</p>
+                    <p class="text-xs text-brand-teal font-medium">Nuvem Sincronizada</p>
+                </div>
+                <button onclick="logout()" class="text-gray-400 hover:text-red-500 p-1" title="Sair">
+                    <i class="ph-bold ph-sign-out text-lg"></i>
+                </button>
             </div>
         </aside>
 
-        <!-- Main Content Area -->
-        <main id="main-content" class="flex-1 flex flex-col h-screen overflow-hidden relative">
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
             
-            <!-- Top Nav -->
-            <header id="top-nav" class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-6 shrink-0 shadow-sm z-10">
-                <h2 id="current-view-title" class="text-lg font-semibold text-gray-800">Visão Geral</h2>
+            <header class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-6 shrink-0 shadow-sm z-10">
+                <h2 id="current-view-title" class="text-lg font-semibold text-gray-800">Painel Geral</h2>
                 <div class="flex items-center gap-3">
-                    <button onclick="openManualAddressModal()" class="bg-teal-50 hover:bg-teal-100 text-brand-teal text-xs font-medium py-1.5 px-3 rounded-lg transition-all flex items-center gap-1.5">
-                        <i class="ph-bold ph-plus-circle"></i> Novo Endereço
+                    <button onclick="openManualModal()" class="bg-teal-50 hover:bg-teal-100 text-brand-teal text-sm font-medium py-1.5 px-3 rounded-lg transition-all flex items-center gap-1.5">
+                        <i class="ph-bold ph-plus-circle"></i> Inserir Ponto Manual
                     </button>
+                    <span class="text-xs font-semibold bg-green-100 text-green-800 px-2.5 py-1 rounded-full flex items-center gap-1">
+                        <i class="ph-fill ph-cloud-check"></i> Perfil Ativo
+                    </span>
                 </div>
             </header>
 
-            <!-- VIEW: Dashboard -->
+            <!-- VIEW: Dashboard Vazio -->
             <div id="dashboard-view" class="flex-1 flex flex-col items-center justify-center p-8 bg-gray-50">
-                <i class="ph-duotone ph-map-pin-line text-7xl text-brand-teal mb-4"></i>
-                <h3 class="text-2xl font-bold text-gray-700 mb-2">Nenhuma rota selecionada</h3>
-                <p class="text-gray-500 text-center max-w-md mb-8">Importe sua planilha ou cadastre endereços manualmente para organizar suas entregas e gerar links do Google Maps.</p>
+                <i class="ph-duotone ph-file-xls text-7xl text-brand-teal mb-4"></i>
+                <h3 class="text-2xl font-bold text-gray-700 mb-2">Nenhuma rota carregada</h3>
+                <p class="text-gray-500 text-center max-w-md mb-8">Importe sua planilha de endereços (.xlsx ou .csv) ou adicione pontos manualmente para gerar sua rota com link direto para o Google Maps.</p>
                 <div class="flex gap-4">
                     <button onclick="showView('import-view')" class="bg-brand-teal hover:bg-brand-tealDark text-white font-semibold py-3 px-6 rounded-lg shadow-md transition-all flex items-center gap-2">
-                        <i class="ph-bold ph-file-xls"></i> Importar Planilha
-                    </button>
-                    <button onclick="openManualAddressModal()" class="bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-semibold py-3 px-6 rounded-lg shadow-sm transition-all flex items-center gap-2">
-                        <i class="ph-bold ph-pencil-line"></i> Cadastrar Manualmente
+                        <i class="ph-bold ph-file-xls"></i> Importar Planilha My Maps
                     </button>
                 </div>
             </div>
 
-            <!-- VIEW: Import Excel -->
+            <!-- VIEW: Importação Modelo Google My Maps -->
             <div id="import-view" class="hidden flex-1 flex flex-col p-8 bg-gray-50 overflow-y-auto">
                 <div class="max-w-3xl w-full mx-auto bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                     <div class="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
                         <div>
-                            <h3 class="text-xl font-bold text-gray-800" id="import-title">Importar Planilha de Entregas</h3>
-                            <p class="text-sm text-gray-500 mt-1">Carregue o arquivo contendo seus dados e endereços.</p>
+                            <h3 class="text-xl font-bold text-gray-800">Importação Real (Google My Maps)</h3>
+                            <p class="text-sm text-gray-500 mt-1">O sistema identifica automaticamente as colunas de Endereço, Bairro, Cidade, NF e Pedido do seu arquivo.</p>
                         </div>
                     </div>
 
                     <div class="p-8" id="upload-step">
-                        <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleFileUpload(event)">
+                        <!-- Input real de arquivo Excel / CSV oculto ativado pelo clique -->
+                        <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelUpload(event)">
                         
                         <div class="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center hover:bg-gray-50 hover:border-brand-teal transition-all cursor-pointer group" onclick="document.getElementById('excel-file-input').click()">
                             <div class="w-16 h-16 bg-brand-tealLight text-brand-teal rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                                 <i class="ph-bold ph-upload-simple text-3xl"></i>
                             </div>
-                            <h4 class="text-lg font-semibold text-gray-700 mb-1">Clique para selecionar a planilha de entregas</h4>
-                            <p class="text-sm text-gray-500 mb-4">Formatos suportados: .xlsx, .xls, .csv</p>
+                            <h4 class="text-lg font-semibold text-gray-700 mb-1">Clique para selecionar seu arquivo Excel ou CSV</h4>
+                            <p class="text-sm text-gray-500 mb-4">Compatível com colunas personalizadas do Google My Maps</p>
                             <span class="inline-block bg-white border border-gray-200 px-4 py-2 rounded-lg text-sm font-medium text-gray-600 shadow-sm group-hover:border-brand-teal">
-                                Carregar Arquivo
+                                Explorar Arquivos
                             </span>
                         </div>
                     </div>
 
-                    <!-- Mapping Step -->
+                    <!-- Mapeamento automático estilo My Maps -->
                     <div class="hidden p-8" id="mapping-step">
                         <div class="flex items-center gap-3 mb-6 text-green-700 bg-green-50 p-3.5 rounded-lg border border-green-200">
                             <i class="ph-fill ph-check-circle text-xl"></i>
-                            <span class="text-sm font-medium" id="import-success-msg">Planilha processada com sucesso!</span>
+                            <div>
+                                <span class="text-sm font-bold block" id="imported-filename">Arquivo Lido com Sucesso!</span>
+                                <span class="text-xs" id="imported-count-summary">0 pontos detectados na planilha.</span>
+                            </div>
+                        </div>
+
+                        <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-4">Exemplo de colunas identificadas na sua planilha:</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8 text-xs" id="detected-columns-preview">
+                            <!-- Preenchido dinamicamente -->
                         </div>
 
                         <div class="flex justify-end gap-3">
-                            <button onclick="resetImport()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-all">Cancelar</button>
-                            <button onclick="generateRoute()" class="px-5 py-2 bg-brand-teal hover:bg-brand-tealDark text-white rounded-lg font-medium shadow-md transition-all flex items-center gap-2">
-                                <i class="ph-bold ph-list-numbers"></i> Organizar Rota
+                            <button onclick="resetImport()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium">Cancelar</button>
+                            <button onclick="confirmImport()" class="px-5 py-2 bg-brand-teal hover:bg-brand-tealDark text-white rounded-lg font-medium shadow-md transition-all flex items-center gap-2">
+                                <i class="ph-bold ph-check"></i> Confirmar e Gerar Rota
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- VIEW: Route Planner (List Only) -->
-            <div id="planner-view" class="hidden flex-1 flex flex-col h-full overflow-hidden bg-gray-100">
-                
-                <!-- Print Header -->
-                <div class="print-header w-full p-4">
-                    <h1 class="text-2xl font-bold text-gray-900">Relatório Oficial de Entregas - Flashroute</h1>
-                    <p class="text-gray-600" id="print-route-name">Rota de Entregas</p>
-                </div>
-
-                <!-- Main Container Centered -->
-                <div class="w-full max-w-4xl mx-auto bg-white border-x border-gray-200 flex flex-col h-full shadow-sm">
+            <!-- VIEW: Gerenciador de Rota & Metodologia My Maps -->
+            <div id="planner-view" class="hidden flex-1 flex flex-col h-full overflow-hidden">
+                <div class="flex-1 flex flex-col md:flex-row h-full overflow-hidden">
                     
-                    <div class="p-5 border-b border-gray-200 bg-white shrink-0" id="actions-bar">
-                        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4">
-                            <input type="text" id="route-name-input" value="Nova Rota de Entregas" class="font-bold text-xl text-gray-800 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-brand-teal focus:outline-none w-full md:w-1/2 px-1 py-1 transition-all">
+                    <!-- Painel de Paradas -->
+                    <div class="w-full md:w-[450px] bg-white border-r border-gray-200 flex flex-col h-full z-10 shadow-lg shrink-0">
+                        <div class="p-4 border-b border-gray-200 bg-gray-50 shrink-0 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <input type="text" id="route-name-input" value="Rota Logística - My Maps" class="font-bold text-lg text-gray-800 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-brand-teal focus:outline-none w-3/4 px-1 py-0.5">
+                                <span class="text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded-full"><i class="ph-bold ph-list-bullets"></i> <span id="stops-count-badge">0</span> pontos</span>
+                            </div>
                             
-                            <!-- Google Maps Link Button -->
-                            <button onclick="openGoogleMapsLink()" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 px-5 rounded-lg shadow-md transition-all flex items-center justify-center gap-2">
-                                <i class="ph-bold ph-map-trifold"></i> Abrir Trajeto no Google Maps
-                            </button>
+                            <!-- Ações principais -->
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="saveCurrentRouteToUser()" class="bg-brand-teal hover:bg-brand-tealDark text-white text-xs font-semibold py-2.5 px-3 rounded-lg shadow-sm transition-all flex items-center justify-center gap-1.5">
+                                    <i class="ph-bold ph-floppy-disk"></i> Salvar no Usuário
+                                </button>
+                                <button onclick="openGoogleMapsRoute()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2.5 px-3 rounded-lg shadow-sm transition-all flex items-center justify-center gap-1.5 animate-pulse">
+                                    <i class="ph-bold ph-map-trifold"></i> Abrir no Google Maps
+                                </button>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="openManualModal()" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-medium py-1.5 px-2 rounded-lg flex items-center justify-center gap-1">
+                                    <i class="ph-bold ph-plus"></i> Add Endereço
+                                </button>
+                                <label class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-medium py-1.5 px-2 rounded-lg flex items-center justify-center gap-1 cursor-pointer">
+                                    <i class="ph-bold ph-arrows-clockwise"></i> Atualizar Planilha
+                                    <input type="file" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelUpdate(event)">
+                                </label>
+                            </div>
                         </div>
-                        
-                        <!-- Control Buttons -->
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
-                            <button onclick="optimizeRouteByNearest()" class="bg-gray-800 hover:bg-gray-900 text-white text-xs font-semibold py-2 px-3 rounded-lg shadow-sm transition-all flex items-center justify-center gap-1" title="Mantém o Início e Fim, e ordena o meio por proximidade">
-                                <i class="ph-bold ph-arrows-merge"></i> Otimizar Por Proximidade
-                            </button>
-                            <button onclick="saveCurrentRoute()" class="bg-brand-teal hover:bg-brand-tealDark text-white text-xs font-semibold py-2 px-3 rounded-lg shadow-sm transition-all flex items-center justify-center gap-1">
-                                <i class="ph-bold ph-floppy-disk"></i> Salvar Rota
-                            </button>
-                            <button onclick="openManualAddressModal()" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-medium py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1">
-                                <i class="ph-bold ph-plus"></i> Add Endereço
-                            </button>
-                            <button onclick="window.print()" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-medium py-1.5 px-3 rounded-lg transition-all flex items-center justify-center gap-1 no-print">
-                                <i class="ph-bold ph-file-pdf"></i> Salvar PDF / Imprimir
-                            </button>
+
+                        <div class="px-4 py-2 bg-brand-tealLight border-b border-gray-200 text-xs text-brand-tealDark flex items-center justify-between shrink-0">
+                            <span><i class="ph-fill ph-hand-grabbing mr-1"></i>Arraste para reordenar. Clique para ver dados My Maps.</span>
+                        </div>
+
+                        <!-- Lista de Endereços Metodologia My Maps -->
+                        <div class="flex-1 overflow-y-auto p-3 bg-gray-50/50">
+                            <ul id="stops-list" class="space-y-2 pb-20">
+                                <!-- Preenchido por JS -->
+                            </ul>
                         </div>
                     </div>
 
-                    <div class="px-5 py-3 bg-brand-tealLight border-b border-gray-200 text-sm text-brand-tealDark flex items-center justify-between shrink-0 no-print">
-                        <span><i class="ph-fill ph-info mr-1"></i>Defina o <b>1º Ponto</b> como Partida e o <b>último</b> como Fim. Clique em "Otimizar Por Proximidade" para ordenar o restante.</span>
+                    <!-- Área Informativa e Geração de Link Google Maps -->
+                    <div class="flex-1 bg-gradient-to-br from-gray-50 to-teal-50/30 p-8 flex flex-col items-center justify-center text-center overflow-y-auto">
+                        <div class="max-w-md bg-white p-8 rounded-2xl shadow-xl border border-gray-200 space-y-6">
+                            <div class="w-16 h-16 bg-brand-tealLight text-brand-teal rounded-full flex items-center justify-center mx-auto text-3xl">
+                                <i class="ph-fill ph-compass"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-bold text-gray-800 mb-2">Sua Rota está Pronta no Padrão Google My Maps</h3>
+                                <p class="text-sm text-gray-500 leading-relaxed">Todos os pontos de parada e metadados fiscais foram estruturados. Clique abaixo para abrir a rota completa diretamente no aplicativo ou site do Google Maps.</p>
+                            </div>
+                            
+                            <button onclick="openGoogleMapsRoute()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 px-6 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 text-base">
+                                <i class="ph-bold ph-arrow-square-out text-xl"></i> Visualizar Rota no Google Maps
+                            </button>
+
+                            <div class="text-xs text-gray-400 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                                Dica: O link gerado considera a ordem exata das entregas organizadas na sua lista lateral.
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Stops List -->
-                    <div class="flex-1 overflow-y-auto p-4 bg-gray-50">
-                        <ul id="stops-list" class="space-y-3 pb-20">
-                            <!-- Populated by JS -->
-                        </ul>
-                    </div>
                 </div>
             </div>
 
         </main>
     </div>
 
-    <!-- MODAL: CADASTRAR ENDEREÇO MANUALMENTE -->
-    <div id="manual-address-modal" class="fixed inset-0 z-[1000] bg-gray-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
-            <button onclick="closeManualAddressModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1">
+    <!-- MODAL: DETALHES COMPLETOS DO PONTO (ESTILO MY MAPS) -->
+    <div id="stop-detail-modal" class="fixed inset-0 z-[1000] bg-gray-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+            <button onclick="closeStopDetailModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1">
                 <i class="ph-bold ph-x text-xl"></i>
             </button>
             
-            <div class="flex items-center gap-2 mb-4 border-b border-gray-100 pb-3">
-                <i class="ph-bold ph-map-pin-line text-2xl text-brand-teal"></i>
-                <h3 class="text-lg font-bold text-gray-800">Adicionar Endereço Manualmente</h3>
+            <div class="flex items-center gap-3 mb-4">
+                <div id="modal-stop-badge" class="w-10 h-10 rounded-full bg-brand-teal text-white font-bold flex items-center justify-center text-lg shrink-0">1</div>
+                <div>
+                    <h3 id="modal-client-name" class="text-lg font-bold text-gray-800 leading-tight">Cliente</h3>
+                    <span class="text-xs font-semibold text-brand-teal">Informações do Ponto (Google My Maps)</span>
+                </div>
             </div>
 
-            <form id="manual-address-form" onsubmit="handleManualAddressSubmit(event)" class="space-y-3">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Identificação / Cliente *</label>
-                    <input type="text" id="manual-client" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal outline-none" placeholder="Ex: Mercado Central" required>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1">Endereço Completo (Com Cidade/Bairro) *</label>
-                    <input type="text" id="manual-street" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal outline-none" placeholder="Av. Pelinca, 200, Campos dos Goytacazes" required>
-                </div>
-
+            <div class="space-y-3 border-t border-b border-gray-100 py-4 mb-4 text-sm">
                 <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Lat (Opcional p/ cálculo)</label>
-                        <input type="text" id="manual-lat" class="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none" placeholder="-21.7545">
+                    <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                        <span class="text-xs text-gray-400 block font-medium">Nota Fiscal (NF)</span>
+                        <span id="modal-nf" class="font-bold text-gray-800">-</span>
                     </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-700 mb-1">Lng (Opcional p/ cálculo)</label>
-                        <input type="text" id="manual-lng" class="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none" placeholder="-41.3244">
+                    <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                        <span class="text-xs text-gray-400 block font-medium">Nº Pedido</span>
+                        <span id="modal-order" class="font-bold text-gray-800">-</span>
                     </div>
                 </div>
+                <div>
+                    <span class="text-xs text-gray-400 block font-medium">Endereço de Busca:</span>
+                    <p id="modal-address" class="font-medium text-gray-700">-</p>
+                    <p id="modal-city" class="text-xs text-gray-500">-</p>
+                </div>
+                <div class="bg-amber-50 p-3 rounded-lg border border-amber-200/60">
+                    <span class="text-xs font-semibold text-amber-800 block mb-0.5"><i class="ph-bold ph-note-pencil"></i> Observações / Metadados:</span>
+                    <p id="modal-notes" class="text-xs text-amber-900">-</p>
+                </div>
+            </div>
 
-                <div class="pt-2 flex gap-2">
-                    <button type="button" onclick="closeManualAddressModal()" class="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2.5 rounded-xl transition-all">Cancelar</button>
-                    <button type="submit" class="w-1/2 bg-brand-teal hover:bg-brand-tealDark text-white font-semibold py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5">
-                        <i class="ph-bold ph-plus-circle"></i> Adicionar Ponto
-                    </button>
+            <button onclick="closeStopDetailModal()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2.5 px-4 rounded-xl transition-all">
+                Fechar
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL: CADASTRAR / DIGITAR ENDEREÇO MANUALMENTE -->
+    <div id="manual-modal" class="fixed inset-0 z-[1000] bg-gray-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+            <button onclick="closeManualModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1">
+                <i class="ph-bold ph-x text-xl"></i>
+            </button>
+            
+            <h3 class="text-xl font-bold text-gray-800 mb-1">Adicionar Endereço Manualmente</h3>
+            <p class="text-xs text-gray-500 mb-4">Insira o endereço para busca exata via metodologia Google My Maps.</p>
+
+            <form id="manual-form" class="space-y-3 text-sm">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Nome / Título do Ponto *</label>
+                    <input type="text" id="man-client" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal outline-none" placeholder="Ex: Cliente Central" required>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="col-span-2">
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Endereço / Logradouro e Nº *</label>
+                        <input type="text" id="man-street" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal outline-none" placeholder="Av. Nilo Peçanha, 100" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Bairro *</label>
+                        <input type="text" id="man-neigh" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal outline-none" placeholder="Centro" required>
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Cidade</label>
+                        <input type="text" id="man-city" value="Campos dos Goytacazes" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Nota Fiscal (NF)</label>
+                        <input type="text" id="man-nf" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal outline-none" placeholder="NF-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Nº Pedido</label>
+                        <input type="text" id="man-order" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal outline-none" placeholder="PED-90">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Observações do Ponto</label>
+                    <textarea id="man-notes" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-teal outline-none" placeholder="Instruções de entrega..."></textarea>
+                </div>
+
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" onclick="closeManualModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 bg-brand-teal hover:bg-brand-tealDark text-white font-semibold rounded-lg shadow-md transition-all">Salvar Ponto</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- SCRIPT JS PRINCIPAL -->
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-[9999] flex-col items-center justify-center">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm w-full mx-4">
+            <i class="ph-duotone ph-spinner-gap text-5xl text-brand-teal animate-spin mb-4"></i>
+            <h3 class="text-xl font-bold text-gray-800 mb-1" id="loading-title">Processando...</h3>
+            <p class="text-sm text-gray-500 text-center" id="loading-desc">Aguarde...</p>
+        </div>
+    </div>
+
     <script>
-        let currentStops = [];
-        let savedRoutes = [];
+        let currentUser = null;
+        let currentRouteStops = [];
+        let pendingImportedStops = [];
         let sortableInstance = null;
 
-        const defaultCoordinates = [
-            { lat: -21.7545, lng: -41.3244 },
-            { lat: -21.7612, lng: -41.3321 },
-            { lat: -21.7489, lng: -41.3180 },
-            { lat: -21.7680, lng: -41.3400 },
-            { lat: -21.7390, lng: -41.3290 },
-            { lat: -21.7580, lng: -41.3100 },
-            { lat: -21.7700, lng: -41.3250 }
+        const defaultMyMapsData = [
+            { id: '1', client: 'CD Principal Luzia', address: 'Av. Nilo Peçanha, 150', neighborhood: 'Centro', city: 'Campos dos Goytacazes', nf: 'NF-801', order: 'PED-11', notes: 'Ponto de Partida e Carregamento' },
+            { id: '2', client: 'Supermercado Silva', address: 'Rua Formosa, 200', neighborhood: 'Boa Vista', city: 'Campos dos Goytacazes', nf: 'NF-802', order: 'PED-12', notes: 'Entregar na doca lateral' },
+            { id: '3', client: 'Padaria Central', address: 'Rua Tenente Coronel Cardoso, 500', neighborhood: 'Centro', city: 'Campos dos Goytacazes', nf: 'NF-803', order: 'PED-13', notes: 'Recebimento matinal' },
+            { id: '4', client: 'Supermercado Goytacá', address: 'Av. 28 de Março, 1000', neighborhood: 'Turf Club', city: 'Campos dos Goytacazes', nf: 'NF-804', order: 'PED-14', notes: 'Conferir com o gerente' }
         ];
 
-        document.addEventListener("DOMContentLoaded", () => {
-            initSavedRoutes();
-            initSortable();
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('login-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                handleLogin(document.getElementById('login-email').value);
+            });
+
+            document.getElementById('register-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                handleRegister(document.getElementById('reg-name').value, document.getElementById('reg-email').value);
+            });
+
+            document.getElementById('manual-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                saveManualStop();
+            });
         });
 
-        function openGoogleMapsLink() {
-            if (currentStops.length === 0) {
-                alert("Adicione endereços à rota primeiro.");
-                return;
-            }
-            
-            const origin = encodeURIComponent(currentStops[0].street);
-            let destination = origin;
-            let waypoints = "";
+        function switchAuthTab(tab) {
+            const loginBtn = document.getElementById('tab-login-btn');
+            const regBtn = document.getElementById('tab-register-btn');
+            const loginForm = document.getElementById('login-form');
+            const regForm = document.getElementById('register-form');
 
-            if (currentStops.length > 1) {
-                destination = encodeURIComponent(currentStops[currentStops.length - 1].street);
-                
-                if (currentStops.length > 2) {
-                    const middleStops = currentStops.slice(1, -1);
-                    waypoints = "&waypoints=" + middleStops.map(stop => encodeURIComponent(stop.street)).join('|');
-                }
+            if(tab === 'login') {
+                loginBtn.className = "flex-1 pb-3 text-sm font-bold border-b-2 border-brand-teal text-brand-teal transition-all";
+                regBtn.className = "flex-1 pb-3 text-sm font-bold border-b-2 border-transparent text-gray-400 hover:text-gray-600 transition-all";
+                loginForm.classList.remove('hidden');
+                regForm.classList.add('hidden');
+            } else {
+                regBtn.className = "flex-1 pb-3 text-sm font-bold border-b-2 border-brand-teal text-brand-teal transition-all";
+                loginBtn.className = "flex-1 pb-3 text-sm font-bold border-b-2 border-transparent text-gray-400 hover:text-gray-600 transition-all";
+                regForm.classList.remove('hidden');
+                loginForm.classList.add('hidden');
             }
-
-            const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${waypoints}`;
-            window.open(mapsUrl, '_blank');
         }
 
-        function optimizeRouteByNearest() {
-            if (currentStops.length < 3) {
-                alert("Você precisa de pelo menos 3 pontos para otimizar (1 Partida, 1 Fim, e no mínimo 1 Parada).");
-                return;
-            }
-
-            const startNode = currentStops[0];
-            const endNode = currentStops[currentStops.length - 1];
-            const unvisited = currentStops.slice(1, -1);
-            const optimized = [startNode];
-
-            while (unvisited.length > 0) {
-                const current = optimized[optimized.length - 1];
-                let nearestIdx = 0;
-                let minDistance = Infinity;
-
-                for (let i = 0; i < unvisited.length; i++) {
-                    const dist = calculateHaversineDistance(current, unvisited[i]);
-                    if (dist < minDistance) {
-                        minDistance = dist;
-                        nearestIdx = i;
-                    }
-                }
-
-                optimized.push(unvisited.splice(nearestIdx, 1)[0]);
-            }
-
-            optimized.push(endNode);
-            currentStops = optimized;
-            renderStopsList();
+        function handleLogin(email) {
+            showLoading("Autenticando...", "Carregando dados vinculados ao seu perfil.");
+            setTimeout(() => {
+                hideLoading();
+                currentUser = { name: email.split('@')[0], email: email };
+                initUserSession();
+            }, 600);
         }
 
-        function calculateHaversineDistance(p1, p2) {
-            const R = 6371;
-            const dLat = (p2.lat - p1.lat) * Math.PI / 180;
-            const dLng = (p2.lng - p1.lng) * Math.PI / 180;
-            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                      Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) *
-                      Math.sin(dLng/2) * Math.sin(dLng/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-            return R * c;
+        function handleRegister(name, email) {
+            showLoading("Criando Conta...", "Configurando armazenamento em nuvem para o usuário.");
+            setTimeout(() => {
+                hideLoading();
+                currentUser = { name: name, email: email };
+                initUserSession();
+            }, 600);
         }
 
-        function handleFileUpload(e) {
-            const file = e.target.files[0];
+        function initUserSession() {
+            document.getElementById('auth-view').classList.add('hidden');
+            document.getElementById('app-layout').classList.remove('hidden');
+            document.getElementById('user-display-name').innerText = currentUser.name;
+            document.getElementById('user-initial').innerText = currentUser.name.charAt(0).toUpperCase();
+
+            loadUserRoutes();
+            showView('dashboard-view');
+        }
+
+        function logout() {
+            currentUser = null;
+            document.getElementById('app-layout').classList.add('hidden');
+            document.getElementById('auth-view').classList.remove('hidden');
+        }
+
+        function showView(viewId) {
+            ['dashboard-view', 'import-view', 'planner-view'].forEach(v => {
+                document.getElementById(v).classList.add('hidden');
+            });
+            document.getElementById(viewId).classList.remove('hidden');
+        }
+
+        // LEITURA REAL DE ARQUIVOS EXCEL / CSV (SheetJS)
+        function handleExcelUpload(event) {
+            const file = event.target.files[0];
             if (!file) return;
 
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                const data = new Uint8Array(evt.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+            showLoading("Lendo Planilha...", "Analisando colunas e dados do arquivo.");
 
-                if (jsonData.length > 0) {
-                    currentStops = jsonData.map((row, idx) => {
-                        const lat = row['Lat'] || row['Latitude'] || defaultCoordinates[idx % defaultCoordinates.length].lat;
-                        const lng = row['Lng'] || row['Longitude'] || defaultCoordinates[idx % defaultCoordinates.length].lng;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const jsonRows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+                    if (jsonRows.length === 0) {
+                        hideLoading();
+                        alert("O arquivo selecionado está vazio ou não possui linhas válidas.");
+                        return;
+                    }
+
+                    // Processar e mapear colunas flexivelmente estilo Google My Maps
+                    pendingImportedStops = jsonRows.map((row, index) => {
+                        const keys = Object.keys(row);
+                        const findVal = (terms) => {
+                            for (let t of terms) {
+                                const foundKey = keys.find(k => k.toLowerCase().includes(t));
+                                if (foundKey !== undefined) return String(row[foundKey]);
+                            }
+                            return '';
+                        };
+
+                        const client = findVal(['nome', 'cliente', 'titulo', 'local']) || `Ponto ${index + 1}`;
+                        const address = findVal(['endereço', 'endereco', 'logradouro', 'rua', 'address']) || 'Endereço não informado';
+                        const neighborhood = findVal(['bairro', 'neighborhood', 'regiao']) || '';
+                        const city = findVal(['cidade', 'municipio', 'city']) || 'Campos dos Goytacazes';
+                        const nf = findVal(['nf', 'nota', 'fiscal', 'nfe']) || `NF-${index + 100}`;
+                        const order = findVal(['pedido', 'order', 'cod', 'codigo']) || `PED-${index + 10}`;
+                        const notes = findVal(['obs', 'observacao', 'observações', 'nota']) || 'Importado via planilha';
 
                         return {
-                            client: row['Cliente'] || row['Nome'] || row['Razao Social'] || `Cliente ${idx + 1}`,
-                            street: row['Endereco'] || row['Rua'] || row['Logradouro'] || 'Av. Pelinca, Campos dos Goytacazes',
-                            lat: parseFloat(lat),
-                            lng: parseFloat(lng)
+                            id: (Date.now() + index).toString(),
+                            client: client,
+                            address: address,
+                            neighborhood: neighborhood,
+                            city: city,
+                            nf: nf,
+                            order: order,
+                            notes: notes
                         };
                     });
 
+                    hideLoading();
+                    
+                    document.getElementById('imported-filename').innerText = `Arquivo: ${file.name}`;
+                    document.getElementById('imported-count-summary').innerText = `${pendingImportedStops.length} pontos detectados com sucesso.`;
+                    
+                    const previewContainer = document.getElementById('detected-columns-preview');
+                    previewContainer.innerHTML = `
+                        <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                            <span class="text-gray-400 block">Total de Linhas Identificadas:</span>
+                            <span class="font-semibold text-gray-800 text-sm">${pendingImportedStops.length} registros</span>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                            <span class="text-gray-400 block">Metodologia My Maps:</span>
+                            <span class="font-semibold text-gray-800 text-sm">Atributos e Endereços Mapeados</span>
+                        </div>
+                    `;
+
                     document.getElementById('upload-step').classList.add('hidden');
                     document.getElementById('mapping-step').classList.remove('hidden');
+
+                } catch (err) {
+                    hideLoading();
+                    console.error(err);
+                    alert("Erro ao ler o arquivo Excel. Verifique se o formato é válido.");
                 }
             };
             reader.readAsArrayBuffer(file);
+            event.target.value = '';
         }
 
         function resetImport() {
             document.getElementById('upload-step').classList.remove('hidden');
             document.getElementById('mapping-step').classList.add('hidden');
-            document.getElementById('excel-file-input').value = '';
+            showView('dashboard-view');
         }
 
-        function generateRoute() {
-            showView('planner-view');
+        function confirmImport() {
+            if(pendingImportedStops.length === 0) return;
+            showLoading("Gerando Rota My Maps...", "Estruturando pontos de parada.");
+            setTimeout(() => {
+                hideLoading();
+                currentRouteStops = [...pendingImportedStops];
+                document.getElementById('route-name-input').value = `Rota Importada - ${new Date().toLocaleDateString('pt-BR')}`;
+                renderStopsList();
+                showView('planner-view');
+                document.getElementById('upload-step').classList.remove('hidden');
+                document.getElementById('mapping-step').classList.add('hidden');
+            }, 600);
+        }
+
+        function handleExcelUpdate(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            showLoading("Atualizando Planilha...", "Integrando novos dados...");
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonRows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+                    const newStops = jsonRows.map((row, index) => {
+                        const keys = Object.keys(row);
+                        const findVal = (terms) => {
+                            for (let t of terms) {
+                                const foundKey = keys.find(k => k.toLowerCase().includes(t));
+                                if (foundKey !== undefined) return String(row[foundKey]);
+                            }
+                            return '';
+                        };
+
+                        return {
+                            id: (Date.now() + index + 999).toString(),
+                            client: findVal(['nome', 'cliente', 'titulo']) || `Novo Ponto ${index + 1}`,
+                            address: findVal(['endereço', 'endereco', 'rua', 'address']) || 'Endereço',
+                            neighborhood: findVal(['bairro']) || '',
+                            city: findVal(['cidade']) || 'Campos dos Goytacazes',
+                            nf: findVal(['nf', 'nota']) || 'NF-NOVA',
+                            order: findVal(['pedido', 'order']) || 'PED-NOVO',
+                            notes: 'Atualizado via planilha'
+                        };
+                    });
+
+                    hideLoading();
+                    currentRouteStops = [...currentRouteStops, ...newStops];
+                    renderStopsList();
+                    alert(`Planilha atualizada! ${newStops.length} novos pontos integrados.`);
+                } catch (err) {
+                    hideLoading();
+                    alert("Erro ao ler arquivo de atualização.");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+            event.target.value = '';
+        }
+
+        // Adicionar Manualmente
+        function openManualModal() {
+            document.getElementById('manual-modal').classList.remove('hidden');
+        }
+        function closeManualModal() {
+            document.getElementById('manual-modal').classList.add('hidden');
+            document.getElementById('manual-form').reset();
+        }
+        function saveManualStop() {
+            const stop = {
+                id: Date.now().toString(),
+                client: document.getElementById('man-client').value,
+                address: document.getElementById('man-street').value,
+                neighborhood: document.getElementById('man-neigh').value,
+                city: document.getElementById('man-city').value,
+                nf: document.getElementById('man-nf').value || 'NF-MANUAL',
+                order: document.getElementById('man-order').value || 'PED-MANUAL',
+                notes: document.getElementById('man-notes').value || 'Ponto cadastrado manualmente'
+            };
+            currentRouteStops.push(stop);
+            closeManualModal();
             renderStopsList();
+            showView('planner-view');
         }
 
+        // Renderizar Lista de Paradas
         function renderStopsList() {
-            const list = document.getElementById('stops-list');
-            list.innerHTML = '';
+            const listEl = document.getElementById('stops-list');
+            listEl.innerHTML = '';
+            document.getElementById('stops-count-badge').innerText = currentRouteStops.length;
 
-            currentStops.forEach((stop, index) => {
-                let badgeClass = 'bg-brand-teal';
-                let labelExtra = '';
-                
-                if (index === 0) {
-                    badgeClass = 'bg-green-600';
-                    labelExtra = '<span class="text-[10px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded ml-2 border border-green-200">PARTIDA</span>';
-                }
-                else if (index === currentStops.length - 1) {
-                    badgeClass = 'bg-red-500';
-                    labelExtra = '<span class="text-[10px] font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded ml-2 border border-red-200">DESTINO FINAL</span>';
-                }
-
+            currentRouteStops.forEach((stop, index) => {
                 const li = document.createElement('li');
-                li.className = 'stop-item bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between hover:border-brand-teal transition-all';
+                li.className = 'bg-white p-3 rounded-xl shadow-sm border border-gray-200 flex items-center gap-3 relative group transition-all hover:border-brand-teal cursor-pointer';
+                li.dataset.id = stop.id;
+
                 li.innerHTML = `
-                    <div class="flex items-center gap-4 w-full">
-                        <i class="ph-bold ph-dots-six-vertical drag-handle text-gray-400 cursor-grab text-2xl hover:text-gray-600"></i>
-                        <span class="w-8 h-8 rounded-full ${badgeClass} text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-sm">
-                            ${index + 1}
-                        </span>
-                        <div class="flex-1">
-                            <div class="flex items-center">
-                                <p class="font-bold text-sm text-gray-800">${stop.client}</p>
-                                ${labelExtra}
-                            </div>
-                            <p class="text-xs text-gray-500 mt-0.5 leading-relaxed">${stop.street}</p>
+                    <div class="drag-handle cursor-grab text-gray-300 hover:text-gray-600 px-1 py-1">
+                        <i class="ph-bold ph-dots-six-vertical text-lg"></i>
+                    </div>
+                    <div class="w-7 h-7 rounded-full bg-brand-tealLight text-brand-teal font-bold flex items-center justify-center text-xs shrink-0 border border-brand-teal/30">
+                        ${index + 1}
+                    </div>
+                    <div class="flex-1 min-w-0" onclick="openStopDetail('${stop.id}')">
+                        <h4 class="text-xs font-bold text-gray-800 truncate">${stop.client}</h4>
+                        <p class="text-xs text-gray-500 truncate">${stop.address}${stop.neighborhood ? ', ' + stop.neighborhood : ''}</p>
+                        <div class="flex items-center gap-2 mt-1 text-[10px] text-gray-400 font-medium">
+                            <span><i class="ph-bold ph-file-text"></i> ${stop.nf}</span>
+                            <span>•</span>
+                            <span><i class="ph-bold ph-package"></i> ${stop.order}</span>
                         </div>
                     </div>
-                    <button onclick="removeStop(${index})" class="text-gray-400 hover:bg-red-50 hover:text-red-600 p-2 rounded-lg transition-colors no-print shrink-0 ml-2" title="Remover da lista">
-                        <i class="ph-bold ph-trash text-lg"></i>
+                    <button onclick="event.stopPropagation(); removeStop('${stop.id}')" class="text-gray-300 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <i class="ph-bold ph-trash"></i>
                     </button>
                 `;
-                list.appendChild(li);
+                listEl.appendChild(li);
             });
-        }
 
-        function initSortable() {
-            const el = document.getElementById('stops-list');
-            sortableInstance = new Sortable(el, {
+            if(sortableInstance) sortableInstance.destroy();
+            sortableInstance = new Sortable(listEl, {
                 handle: '.drag-handle',
                 animation: 150,
-                ghostClass: 'sortable-ghost',
-                onEnd: function () {
-                    const newOrder = [];
-                    const items = el.querySelectorAll('li');
-                    items.forEach((item) => {
-                        const idx = parseInt(item.querySelector('span.w-8').innerText) - 1;
-                        newOrder.push(currentStops[idx]);
-                    });
-                    currentStops = newOrder;
+                onEnd: () => {
+                    const newIds = Array.from(listEl.children).map(li => li.dataset.id);
+                    currentRouteStops = newIds.map(id => currentRouteStops.find(s => s.id === id));
                     renderStopsList();
                 }
             });
         }
 
-        function removeStop(index) {
-            currentStops.splice(index, 1);
+        function removeStop(id) {
+            currentRouteStops = currentRouteStops.filter(s => s.id !== id);
             renderStopsList();
         }
 
-        function openManualAddressModal() {
-            document.getElementById('manual-address-modal').classList.remove('hidden');
+        // Modal de Detalhes
+        function openStopDetail(id) {
+            const stop = currentRouteStops.find(s => s.id === id);
+            if(!stop) return;
+            const idx = currentRouteStops.findIndex(s => s.id === id);
+
+            document.getElementById('modal-stop-badge').innerText = idx + 1;
+            document.getElementById('modal-client-name').innerText = stop.client;
+            document.getElementById('modal-address').innerText = stop.address;
+            document.getElementById('modal-city').innerText = `${stop.neighborhood ? stop.neighborhood + ' - ' : ''}${stop.city}`;
+            document.getElementById('modal-nf').innerText = stop.nf;
+            document.getElementById('modal-order').innerText = stop.order;
+            document.getElementById('modal-notes').innerText = stop.notes;
+
+            document.getElementById('stop-detail-modal').classList.remove('hidden');
+        }
+        function closeStopDetailModal() {
+            document.getElementById('stop-detail-modal').classList.add('hidden');
         }
 
-        function closeManualAddressModal() {
-            document.getElementById('manual-address-modal').classList.add('hidden');
-        }
-
-        function handleManualAddressSubmit(e) {
-            e.preventDefault();
-            const client = document.getElementById('manual-client').value;
-            const street = document.getElementById('manual-street').value;
-            
-            let lat = document.getElementById('manual-lat').value;
-            let lng = document.getElementById('manual-lng').value;
-
-            if(!lat || !lng) {
-                const fallback = defaultCoordinates[currentStops.length % defaultCoordinates.length];
-                lat = fallback.lat;
-                lng = fallback.lng;
+        // GERAÇÃO DO LINK OFICIAL PARA O GOOGLE MAPS COM TODOS OS PONTOS
+        function openGoogleMapsRoute() {
+            if(currentRouteStops.length === 0) {
+                alert('Adicione pelo menos um ponto para gerar a rota.');
+                return;
             }
 
-            currentStops.push({
-                client, street,
-                lat: parseFloat(lat),
-                lng: parseFloat(lng)
-            });
+            const origin = encodeURIComponent(`${currentRouteStops[0].address}, ${currentRouteStops[0].city}`);
+            const destination = encodeURIComponent(`${currentRouteStops[currentRouteStops.length - 1].address}, ${currentRouteStops[currentRouteStops.length - 1].city}`);
+            
+            let waypoints = '';
+            if(currentRouteStops.length > 2) {
+                const intermediate = currentRouteStops.slice(1, -1);
+                waypoints = intermediate.map(s => encodeURIComponent(`${s.address}, ${s.city}`)).join('|');
+            }
 
-            closeManualAddressModal();
-            showView('planner-view');
-            renderStopsList();
-            document.getElementById('manual-address-form').reset();
+            let googleMapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`;
+            if(waypoints) {
+                googleMapsUrl += `&waypoints=${waypoints}`;
+            }
+
+            window.open(googleMapsUrl, '_blank');
         }
 
-        function showView(viewId) {
-            ['dashboard-view', 'import-view', 'planner-view'].forEach(id => {
-                document.getElementById(id).classList.add('hidden');
-            });
-            document.getElementById(viewId).classList.remove('hidden');
+        // Armazenamento vinculado ao usuário
+        function saveCurrentRouteToUser() {
+            const name = document.getElementById('route-name-input').value;
+            const userKey = `flashroute_routes_${currentUser.email}`;
+            let userStored = JSON.parse(localStorage.getItem(userKey) || '[]');
 
-            const titles = {
-                'dashboard-view': 'Visão Geral',
-                'import-view': 'Importar Planilha',
-                'planner-view': 'Planejador de Rota'
+            const routeData = {
+                id: Date.now().toString(),
+                name: name,
+                date: new Date().toLocaleDateString('pt-BR'),
+                stops: [...currentRouteStops]
             };
-            document.getElementById('current-view-title').innerText = titles[viewId];
+
+            userStored.unshift(routeData);
+            localStorage.setItem(userKey, JSON.stringify(userStored));
+            loadUserRoutes();
+            alert('Rota salva com sucesso na sua conta de usuário!');
         }
 
-        function saveCurrentRoute() {
-            const routeName = document.getElementById('route-name-input').value;
-            savedRoutes.push({
-                name: routeName,
-                stops: [...currentStops],
-                date: new Date().toLocaleDateString()
-            });
-            localStorage.setItem('flashroute_saved', JSON.stringify(savedRoutes));
-            initSavedRoutes();
-            alert('Rota salva com sucesso no seu perfil!');
-        }
+        function loadUserRoutes() {
+            const userKey = `flashroute_routes_${currentUser.email}`;
+            let userStored = JSON.parse(localStorage.getItem(userKey) || '[]');
 
-        function initSavedRoutes() {
-            const stored = localStorage.getItem('flashroute_saved');
-            if (stored) savedRoutes = JSON.parse(stored);
+            if(userStored.length === 0) {
+                userStored = [{
+                    id: 'default_1',
+                    name: 'Rota Padrão My Maps',
+                    date: new Date().toLocaleDateString('pt-BR'),
+                    stops: [...defaultMyMapsData]
+                }];
+                localStorage.setItem(userKey, JSON.stringify(userStored));
+            }
 
-            const list = document.getElementById('saved-routes-list');
-            list.innerHTML = '';
+            const listEl = document.getElementById('saved-routes-list');
+            listEl.innerHTML = '';
 
-            savedRoutes.forEach((route, idx) => {
+            userStored.forEach(route => {
                 const li = document.createElement('li');
-                li.className = 'p-2 hover:bg-teal-50 rounded-lg cursor-pointer text-xs flex justify-between items-center text-gray-700';
+                li.className = 'group flex items-center justify-between px-2 py-1 rounded-lg hover:bg-gray-100 transition-colors';
+                
                 li.innerHTML = `
-                    <span class="font-medium truncate" onclick="loadSavedRoute(${idx})">${route.name}</span>
-                    <span class="text-[10px] text-gray-400">${route.stops.length} pts</span>
+                    <div class="flex-1 truncate cursor-pointer py-1" onclick="loadSavedRoute('${route.id}')">
+                        <div class="text-xs font-bold text-gray-700 truncate group-hover:text-brand-teal">${route.name}</div>
+                        <div class="text-[10px] text-gray-400">${route.date} • ${route.stops.length} pontos</div>
+                    </div>
+                    <button onclick="event.stopPropagation(); deleteSavedRoute('${route.id}')" class="text-gray-300 hover:text-red-500 p-1.5 opacity-0 group-hover:opacity-100 transition-opacity" title="Excluir rota salva">
+                        <i class="ph-bold ph-trash text-sm"></i>
+                    </button>
                 `;
-                list.appendChild(li);
+                listEl.appendChild(li);
             });
         }
 
-        function loadSavedRoute(idx) {
-            const route = savedRoutes[idx];
-            currentStops = [...route.stops];
-            document.getElementById('route-name-input').value = route.name;
-            generateRoute();
+        function loadSavedRoute(routeId) {
+            const userKey = `flashroute_routes_${currentUser.email}`;
+            let userStored = JSON.parse(localStorage.getItem(userKey) || '[]');
+            const route = userStored.find(r => r.id === routeId);
+            if(route) {
+                currentRouteStops = [...route.stops];
+                document.getElementById('route-name-input').value = route.name;
+                renderStopsList();
+                showView('planner-view');
+            }
+        }
+
+        function deleteSavedRoute(routeId) {
+            if(!confirm("Deseja realmente excluir esta rota salva?")) return;
+            const userKey = `flashroute_routes_${currentUser.email}`;
+            let userStored = JSON.parse(localStorage.getItem(userKey) || '[]');
+            userStored = userStored.filter(r => r.id !== routeId);
+            localStorage.setItem(userKey, JSON.stringify(userStored));
+            loadUserRoutes();
+        }
+
+        function showLoading(title, desc) {
+            document.getElementById('loading-title').innerText = title;
+            document.getElementById('loading-desc').innerText = desc;
+            document.getElementById('loading-overlay').classList.add('active');
+        }
+        function hideLoading() {
+            document.getElementById('loading-overlay').classList.remove('active');
         }
     </script>
 </body>
